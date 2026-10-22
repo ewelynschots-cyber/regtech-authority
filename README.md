@@ -14,6 +14,8 @@ python -m flask --app 'src.app:create_app({"AUTH_COOKIE_SECURE": False})' run
 
 Abra `http://127.0.0.1:5000/` para usar os módulos financeiros. As entradas podem ser preenchidas ou importadas; os exemplos de carteiras e ofertas são fictícios. O portal exige login e restringe os dados por organização. O provisionamento inicial, perfis, configuração HTTPS e transição dos dados antigos estão em [Acesso e isolamento](docs/access-control.md). A validação continua usando dados fictícios. No Render, o entrypoint `wsgi:app` cria as tabelas ausentes antes de atender requisições.
 
+Para validar no Render gratuito sem Shell, siga [Acesso inicial e transferência futura](docs/render-free.md).
+
 ## Verificar
 
 ```bash

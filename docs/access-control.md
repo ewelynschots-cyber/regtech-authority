@@ -4,7 +4,7 @@
 
 A aplicação exige login para o portal e para as APIs de negócio. Sessões duram uma hora e são mantidas no servidor; o cookie usa HttpOnly, SameSite=Strict e Secure por padrão. O token de sessão é aleatório e somente seu SHA-256 é persistido. Cada escrita exige também um token CSRF da sessão, mantido apenas na memória da página. Login só recebe JSON e recusa Origin diferente do domínio configurado. Logout revoga a sessão; alteração de perfil ou situação de uma conta revoga todas as sessões dessa conta.
 
-Não há cadastro público de organizações nem senha inicial no código. O provisionamento do primeiro administrador é uma ação explícita pelo terminal do servidor:
+Não há cadastro público de organizações nem senha inicial no código. No Render gratuito, o administrador pode ser provisionado por configurações privadas na inicialização, conforme [procedimento sem Shell](render-free.md). O provisionamento também pode ser feito explicitamente pelo terminal do servidor:
 
 ```sh
 python -m flask --app wsgi create-organization --organization 'Nome da organização' --name 'Nome do administrador' --email 'admin@exemplo.com'

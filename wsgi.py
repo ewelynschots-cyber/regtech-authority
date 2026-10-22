@@ -7,6 +7,8 @@ app = create_app()
 # requests; create_all does not drop tables or modify existing records.
 with app.app_context():
     db.create_all()
+    from src.bootstrap import bootstrap_admin
+    bootstrap_admin()
 
 if __name__ == '__main__':
     app.run()
