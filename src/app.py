@@ -8,10 +8,12 @@ from src.services.address_alert_service import check_address_duplicates, calcula
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def create_app():
+def create_app(config=None):
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kyc.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if config:
+        app.config.update(config)
     
     db.init_app(app)
     

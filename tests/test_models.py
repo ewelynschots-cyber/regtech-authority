@@ -4,9 +4,7 @@ from src.models import User, Customer, KycProcess, KycStatus, RiskLevel, Status,
 
 @pytest.fixture
 def app():
-    app = create_app()
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['TESTING'] = True
+    app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:'})
     with app.app_context():
         db.create_all()
         yield app
