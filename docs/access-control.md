@@ -38,7 +38,7 @@ Essa é uma transição de esquema versionada por novas tabelas, não uma migra�
 
 - `DATABASE_URL` define o banco; na ausência, mantém SQLite local. A autenticação não torna SQLite em disco efêmero persistente.
 - `PUBLIC_ORIGIN` deve ser a origem HTTPS externa exata (sem barra final), por exemplo `https://portal.exemplo.com`. É necessária atrás de proxy que termina TLS; não são confiados cabeçalhos X-Forwarded-* enviados arbitrariamente.
-- `AUTH_COOKIE_SECURE` é True por padrão. Testes locais em HTTP usam configuração explícita False na fábrica; produção deve manter HTTPS e Secure.
+- `AUTH_COOKIE_SECURE` é True por padrão. Para desenvolvimento local em HTTP, execute `python -m flask --app 'src.app:create_app({"AUTH_COOKIE_SECURE": False})' run`. Produção deve manter HTTPS e Secure; não use essa configuração local no servidor público.
 - Tentativas de login são registradas com hashes de endereço/e-mail, por janela de 15 minutos: até cinco por conta e cinquenta por endereço; respostas limitadas incluem Retry-After. Não há limitação distribuída completa de todas as APIs nesta etapa.
 - Senhas de contas novas usam PBKDF2 do Werkzeug. MFA, verificação de e-mail, convites com troca de senha e recuperação autônoma permanecem pendentes.
 
