@@ -54,7 +54,7 @@ $('#pdf-extract-form').addEventListener('submit',event=>{
     const response=await fetch('/api/automation/documents/extract',{method:'POST',body:new FormData(event.target)});
     const data=await response.json();if(!response.ok)throw new Error(data.message||'Falha na extração.');
     const target=$('#pdf-result');target.replaceChildren(node('p',data.notice));
-    target.append(node('p',data.complete?'Extração concluída.':'Extração parcial: confira as páginas sem texto.'));
+    target.append(node('p',data.complete?'Extração concluída.':'Extração parcial: confira páginas sem texto, falhas de OCR ou limites de leitura.'));
     for(const candidate of data.candidates){
       const line=node('p',`Página ${candidate.page} · ${candidate.value} · ${candidate.method}`);
       if(candidate.field==='process_number'){
@@ -63,7 +63,7 @@ $('#pdf-extract-form').addEventListener('submit',event=>{
       }
       target.append(line);
     }
-    for(const page of data.pages){const details=node('details');details.append(node('summary',`Página ${page.page} · ${page.method}`),node('pre',page.text||'Texto não extraído.'));target.append(details);}
+    for(const page of data.pages){const details=node('details');details.append(node('summary',`Página ${page.page} · ${page.method}${page.truncated?' · texto limitado a 40.000 caracteres':''}`),node('pre',page.text||'Texto não extraído.'));target.append(details);}
   });
 });
 for(const [id,enabled] of [['enable-monitor',true],['disable-monitor',false]]){
