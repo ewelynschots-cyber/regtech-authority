@@ -5,7 +5,7 @@ API Flask para clientes e KYC, com portal de análises de FIDCs, CDBs, precatór
 ## Executar
 
 ```bash
-pip install -r requirements.txt pytest
+pip install -r requirements-dev.txt
 python -m flask --app src.app init-db
 python -m flask --app src.app run
 ```

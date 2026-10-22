@@ -15,14 +15,16 @@ def extract_pdf(data):
         raise InputError('Envie um PDF de até 3 MB.')
     try:
         reader = PdfReader(io.BytesIO(data))
-        if reader.is_encrypted or len(reader.pages) > 10:
-            raise InputError('Use PDF sem senha, com até 10 páginas.')
+        if reader.is_encrypted or not 1 <= len(reader.pages) <= 10:
+            raise InputError('Use PDF sem senha, com 1 a 10 páginas.')
         pages = []
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / 'source.pdf'
             source.write_bytes(data)
             for index, page in enumerate(reader.pages):
-                value = (page.extract_text() or '')[:40000]
+                extracted = page.extract_text() or ''
+                truncated = len(extracted) > 40000
+                value = extracted[:40000]
                 method = 'text'
                 if len(value.strip()) < 30:
                     method = 'ocr_unavailable'
@@ -31,11 +33,13 @@ def extract_pdf(data):
                         try:
                             subprocess.run(['pdftoppm','-f',str(index+1),'-l',str(index+1),'-singlefile','-scale-to','1800','-png',str(source),target],check=True,timeout=8,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
                             result = subprocess.run(['tesseract',target+'.png','stdout','-l','eng'],check=True,timeout=8,capture_output=True)
-                            value = result.stdout.decode('utf-8',errors='replace')[:40000]
+                            extracted = result.stdout.decode('utf-8',errors='replace')
+                            truncated = len(extracted) > 40000
+                            value = extracted[:40000]
                             method = 'ocr'
                         except (subprocess.SubprocessError,OSError):
                             method = 'ocr_failed'
-                pages.append({'page':index+1,'method':method,'text':value})
+                pages.append({'page':index+1,'method':method,'text':value,'truncated':truncated})
     except InputError:
         raise
     except Exception as exc:
@@ -47,5 +51,5 @@ def extract_pdf(data):
         for match in re.finditer(r'R\$\s*\d[\d.]*,\d{2}',page['text']):
             candidates.append({'field':'amount_unclassified','value':match.group(),'page':page['page'],'method':page['method']})
     return {'sha256':hashlib.sha256(data).hexdigest(),'pages':pages,'candidates':candidates[:100],
-            'requires_review':True,'complete':all(p['text'].strip() and p['method'] in ('text','ocr') for p in pages),
+            'requires_review':True,'complete':all(p['text'].strip() and p['method'] in ('text','ocr') and not p['truncated'] for p in pages),
             'notice':'Confira página e contexto. Valores não identificam saldo nem confirmam titularidade.'}
