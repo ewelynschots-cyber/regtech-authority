@@ -8,8 +8,10 @@ def now_iso():
 
 
 class FinancialAnalysis(db.Model):
-    __tablename__ = 'financial_analyses'
+    __tablename__ = 'org_financial_analyses'
+    organization_id = db.Column(db.String(36), db.ForeignKey('portal_organizations.id'), nullable=True, index=True)
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('org_users.id'), nullable=True)
     module = db.Column(db.String(10), nullable=False)
     name = db.Column(db.String(1000), nullable=False)
     created_at = db.Column(db.String(40), nullable=False, default=now_iso)
@@ -20,10 +22,11 @@ class FinancialAnalysis(db.Model):
 
 
 class FinancialReview(db.Model):
-    __tablename__ = 'financial_reviews'
+    __tablename__ = 'org_financial_reviews'
+    organization_id = db.Column(db.String(36), db.ForeignKey('portal_organizations.id'), nullable=True, index=True)
     __table_args__ = (db.UniqueConstraint('analysis_id', 'revision'),)
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
-    analysis_id = db.Column(db.String(36), db.ForeignKey('financial_analyses.id'), nullable=False, index=True)
+    analysis_id = db.Column(db.String(36), db.ForeignKey('org_financial_analyses.id'), nullable=False, index=True)
     revision = db.Column(db.Integer, nullable=False)
     event = db.Column(db.JSON, nullable=False)
     event_sha256 = db.Column(db.String(64), nullable=False)

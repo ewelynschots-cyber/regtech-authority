@@ -2,7 +2,7 @@
 
 ## Escopo entregue
 
-Portal em `/` com módulos FIDC e CDB, histórico paginado, revisão individual de alertas e exportação JSON. As análises são determinísticas sobre dados importados ou preenchidos. Não existem nesta versão conectores automáticos para CVM, BCB, registradoras ou instituições financeiras. O login, as permissões e o isolamento por organização permanecem fora desta etapa, conforme a ordem solicitada.
+Portal em `/` com módulos FIDC e CDB, histórico paginado, revisão individual de alertas e exportação JSON. As análises são determinísticas sobre dados importados ou preenchidos. Não existem nesta versão conectores automáticos para CVM, BCB, registradoras ou instituições financeiras. Login, perfis e isolamento estão implementados na [camada de acesso](access-control.md).
 
 Os identificadores, fontes e confirmações são declarações de quem prepara a análise. Referenciar um documento, informar seu hash ou marcar uma confirmação não faz leitura, autenticação nem certificação do documento subjacente. Os exemplos distribuídos são fictícios.
 
@@ -77,7 +77,7 @@ A elegibilidade informada deve refletir produtos e instituições sujeitos à ga
 
 ## Revisões e integridade
 
-O corpo de revisão exige `alert_id`, `status`, `reviewer`, `reason`, `evidence_ref` e `expected_revision`. Estados aceitos: `open`, `in_review`, `resolved`, `dismissed`. Pode-se reabrir um alerta com nova justificativa; repetir o mesmo estado é rejeitado. Cada alteração preserva o resultado original e acrescenta um evento numerado com o estado anterior, o novo estado, a referência de evidência, nome declarado do revisor e horário UTC. Sem login, esse nome é uma declaração e não uma identidade autenticada.
+O corpo de revisão exige `alert_id`, `status`, `reviewer`, `reason`, `evidence_ref` e `expected_revision`. Estados aceitos: `open`, `in_review`, `resolved`, `dismissed`. Pode-se reabrir um alerta com nova justificativa; repetir o mesmo estado é rejeitado. Cada alteração preserva o resultado original e acrescenta um evento numerado com o estado anterior, o novo estado, a referência de evidência, identidade do revisor autenticado e horário UTC. O nome enviado pelo cliente não substitui a sessão autenticada.
 
 O número esperado de revisão e uma restrição única no banco impedem que duas sessões sobrescrevam a mesma revisão. Cada evento inclui o hash do anterior; o primeiro referencia o hash do resultado original. A consulta/exportação confere os hashes da entrada, do resultado original e do encadeamento. Divergências bloqueiam novas revisões. Não há assinatura digital, selo de tempo externo nem garantia contra reescrita coordenada por quem controla o banco. O resultado mostrado na tela aplica as revisões sobre uma cópia do original; o hash do resultado corresponde ao original armazenado.
 
@@ -98,4 +98,4 @@ As regras de conferência documental, comparação estatística e concentração
 - `npm ci && npm run test:ui`: aprovado. Exercita carregamento repetido do exemplo, preservação dos campos da oferta principal, envio do formulário CDB, apresentação do resultado, revisão, recuperação pelo histórico e exportação JSON, sem erros de JavaScript. Usa servidor e banco temporários.
 - `node --check src/static/financial.js`: aprovado.
 - Conferência visual em navegador real e nos tamanhos desktop/celular: pendente. A tentativa de instalar o Chromium de testes não foi concluída neste ambiente; nenhuma captura visual foi produzida.
-- Publicação no Render: inicialização WSGI prepara tabelas ausentes sem apagar registros (teste dedicado de reinicialização). Login, permissões, separação por organização, persistência de produção e conectores externos permanecem etapas posteriores.
+- Publicação no Render: inicialização WSGI prepara tabelas ausentes sem apagar registros (teste dedicado de reinicialização). Login, permissões e isolamento são cobertos pela camada de acesso. Persistência de produção e conectores externos continuam pendentes.

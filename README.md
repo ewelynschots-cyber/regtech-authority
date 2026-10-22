@@ -5,12 +5,13 @@ API Flask para clientes e KYC, com portal de análises de FIDCs, CDBs, precatór
 ## Executar
 
 ```bash
-pip install -r requirements.txt pytest
+pip install -r requirements-dev.txt
 python -m flask --app src.app init-db
+# Para uso real: HTTPS e PUBLIC_ORIGIN; veja docs/access-control.md.
 python -m flask --app src.app run
 ```
 
-Abra `http://127.0.0.1:5000/` para usar os módulos financeiros. As entradas podem ser preenchidas ou importadas; os exemplos de carteiras e ofertas são fictícios. Esta etapa ainda não implementa autenticação, permissões ou separação por organização e destina-se à validação com dados fictícios. No Render, o entrypoint `wsgi:app` cria as tabelas ausentes antes de atender requisições.
+Abra `http://127.0.0.1:5000/` para usar os módulos financeiros. As entradas podem ser preenchidas ou importadas; os exemplos de carteiras e ofertas são fictícios. O portal exige login e restringe os dados por organização. O provisionamento inicial, perfis, configuração HTTPS e transição dos dados antigos estão em [Acesso e isolamento](docs/access-control.md). A validação continua usando dados fictícios. No Render, o entrypoint `wsgi:app` cria as tabelas ausentes antes de atender requisições.
 
 ## Verificar
 

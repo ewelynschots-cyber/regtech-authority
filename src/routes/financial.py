@@ -3,9 +3,10 @@ import json
 import csv
 import io
 import re
-from flask import Blueprint, jsonify, request, Response
+from flask import Blueprint, jsonify, request, Response, g
 from sqlalchemy.exc import IntegrityError
 from src import db
+from src.access import scoped, owned, owner_values
 from src.models.financial_analysis import FinancialAnalysis, FinancialReview, now_iso
 from src.services.credit_analysis import analyze_credits
 from src.models.source_lookup import SourceLookup
@@ -23,7 +24,7 @@ def input_error(exc):
 
 
 def events_for(analysis):
-    return FinancialReview.query.filter_by(analysis_id=analysis.id).order_by(FinancialReview.revision).all()
+    return FinancialReview.query.filter_by(analysis_id=analysis.id, organization_id=analysis.organization_id).order_by(FinancialReview.revision).all()
 
 
 def report(analysis):
@@ -42,7 +43,7 @@ def report(analysis):
     checklist = [{'alert_id': a['id'], 'status': a['status'], 'task': a['message'],
                   'row': a.get('row'), 'evidence': a.get('evidence', {})}
                  for a in result['alerts'] if a['status'] in ('open', 'in_review')]
-    return {'id': analysis.id, 'created_at': analysis.created_at, 'result': result, 'diligence_checklist': checklist,
+    return {'id': analysis.id, 'created_at': analysis.created_at, 'created_by_user_id': analysis.created_by_user_id, 'result': result, 'diligence_checklist': checklist,
             'revision': len(events), 'input_sha256': analysis.input_sha256,
             'result_sha256': analysis.result_sha256,
             'integrity': {'input_matches': canonical_hash(analysis.input_payload) == analysis.input_sha256,
@@ -52,8 +53,8 @@ def report(analysis):
 
 
 def save_analysis(module, payload, result, artifact=None):
-    envelope = {'request': payload, 'import': artifact}
-    item = FinancialAnalysis(module=module, name=result['name'], input_payload=envelope,
+    envelope = {'request': payload, 'import': artifact, 'created_by_user_id': g.user.id, 'organization_id': g.user.organization_id}
+    item = FinancialAnalysis(**owner_values(), created_by_user_id=g.user.id, module=module, name=result['name'], input_payload=envelope,
                              result_payload=result, input_sha256=canonical_hash(envelope),
                              result_sha256=canonical_hash(result))
     db.session.add(item)
@@ -96,12 +97,12 @@ def save_credit_analysis(payload, artifact=None):
     result = analyze_credits(payload)
     linked = result['linked_fidc_analysis_id']
     if linked:
-        portfolio = db.get_or_404(FinancialAnalysis, linked)
+        portfolio = owned(FinancialAnalysis, linked)
         if portfolio.module != 'fidc':
             raise InputError('A análise vinculada deve pertencer ao módulo FIDC')
     result['process_queries'] = []
     for identifier in result['process_lookup_ids']:
-        snapshot = db.get_or_404(SourceLookup, identifier)
+        snapshot = owned(SourceLookup, identifier)
         if canonical_hash(snapshot.payload) != snapshot.payload_sha256:
             raise InputError('Consulta com divergência de integridade')
         lookup = snapshot.payload
@@ -163,7 +164,7 @@ def history():
         raise InputError('page deve ser inteiro positivo')
     if page < 1:
         raise InputError('page deve ser inteiro positivo')
-    query = FinancialAnalysis.query
+    query = scoped(FinancialAnalysis)
     module = request.args.get('module')
     if module:
         if module not in ('fidc', 'cdb', 'credits'):
@@ -177,19 +178,19 @@ def history():
 
 @financial_api.get('/analyses/<string:identifier>')
 def analysis_detail(identifier):
-    return jsonify(report(db.get_or_404(FinancialAnalysis, identifier)))
+    return jsonify(report(owned(FinancialAnalysis, identifier)))
 
 
 @financial_api.get('/analyses/<string:identifier>/export')
 def export(identifier):
-    analysis = db.get_or_404(FinancialAnalysis, identifier)
+    analysis = owned(FinancialAnalysis, identifier)
     return Response(json.dumps({**report(analysis), 'input': analysis.input_payload}, ensure_ascii=False, indent=2),
                     mimetype='application/json', headers={'Content-Disposition': f'attachment; filename="regtech-{analysis.id}.json"'})
 
 
 @financial_api.get('/analyses/<string:identifier>/checklist.csv')
 def checklist_export(identifier):
-    data = report(db.get_or_404(FinancialAnalysis, identifier))
+    data = report(owned(FinancialAnalysis, identifier))
     stream = io.StringIO()
     writer = csv.writer(stream, delimiter=';')
     writer.writerow(['Alerta', 'Status', 'Tarefa de diligência', 'Linha', 'Evidência'])
@@ -205,7 +206,7 @@ def checklist_export(identifier):
 
 @financial_api.post('/analyses/<string:identifier>/reviews')
 def review(identifier):
-    analysis = db.get_or_404(FinancialAnalysis, identifier)
+    analysis = owned(FinancialAnalysis, identifier)
     payload = object_fields(request.get_json(), {'alert_id', 'status', 'reviewer', 'reason', 'evidence_ref', 'expected_revision'}, 'Revisão')
     alerts = {alert['id']: alert for alert in analysis.result_payload['alerts']}
     alert_id = text(payload.get('alert_id'), 'alert_id')
@@ -226,11 +227,12 @@ def review(identifier):
     previous = current['reviews'][-1]['sha256'] if current['reviews'] else analysis.result_sha256
     event = {'analysis_id': analysis.id, 'revision': expected + 1, 'alert_id': alert_id,
              'previous_status': old_status, 'status': status,
-             'reviewer_declared': text(payload.get('reviewer'), 'reviewer'),
+             'reviewer_declared': g.user.name, 'reviewer_id': g.user.id,
+             'organization_id': g.user.organization_id,
              'reason': text(payload.get('reason'), 'reason'),
              'evidence_ref': text(payload.get('evidence_ref'), 'evidence_ref'),
              'created_at': now_iso(), 'previous_sha256': previous}
-    db.session.add(FinancialReview(analysis_id=analysis.id, revision=expected + 1,
+    db.session.add(FinancialReview(**owner_values(), analysis_id=analysis.id, revision=expected + 1,
                                   event=event, event_sha256=canonical_hash(event)))
     try:
         db.session.commit()

@@ -1,3 +1,4 @@
+from tests.access_helpers import provision, signed_client
 import pytest
 from src.app import create_app, db
 from src.models import User, Customer, KycProcess, KycStatus, RiskLevel, Status, CustomerType, Role
@@ -7,12 +8,13 @@ def app():
     app = create_app({'TESTING': True, 'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:'})
     with app.app_context():
         db.create_all()
+        provision(app)
         yield app
         db.drop_all()
 
 @pytest.fixture
 def client(app):
-    return app.test_client()
+    return signed_client(app)
 
 def test_get_customers(client):
     response = client.get('/api/customers')
@@ -35,6 +37,7 @@ def test_create_customer(client):
 def test_get_customer_by_id(client, app):
     with app.app_context():
         customer = Customer(
+            organization_id=app.config["TEST_ORG_ID"],
             name='Test Customer',
             email='test@test.com',
             customer_type=CustomerType.PF,
@@ -54,6 +57,7 @@ def test_get_customer_by_id(client, app):
 def test_update_customer(client, app):
     with app.app_context():
         customer = Customer(
+            organization_id=app.config["TEST_ORG_ID"],
             name='Test Customer',
             email='test@test.com',
             customer_type=CustomerType.PF,
@@ -74,6 +78,7 @@ def test_update_customer(client, app):
 def test_delete_customer(client, app):
     with app.app_context():
         customer = Customer(
+            organization_id=app.config["TEST_ORG_ID"],
             name='Test Customer',
             email='test@test.com',
             customer_type=CustomerType.PF,
@@ -97,12 +102,14 @@ def test_get_kyc_processes(client):
 def test_create_kyc_process(client, app):
     with app.app_context():
         analyst = User(
+            organization_id=app.config["TEST_ORG_ID"],
             name='Analyst',
             email='analyst@test.com',
             password='pwd',
             role=Role.analyst
         )
         customer = Customer(
+            organization_id=app.config["TEST_ORG_ID"],
             name='Test Customer',
             email='test@test.com',
             customer_type=CustomerType.PF,

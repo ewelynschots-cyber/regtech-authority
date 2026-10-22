@@ -6,3 +6,8 @@ node_modules/
 .pytest_cache/
 .coverage
 
+
+.venv/
+*.db
+*.db-wal
+*.db-shm

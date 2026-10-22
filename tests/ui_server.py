@@ -19,6 +19,8 @@ def fixture_lookup(number,key):
 
 if __name__=='__main__':
     automation.lookup_process=fixture_lookup
-    app=create_app({'SQLALCHEMY_DATABASE_URI':'sqlite:///'+sys.argv[1],'DATAJUD_API_KEY':'test-key-not-real'})
+    app=create_app({'SQLALCHEMY_DATABASE_URI':'sqlite:///'+sys.argv[1],'DATAJUD_API_KEY':'test-key-not-real','AUTH_COOKIE_SECURE':False})
     with app.app_context():db.create_all()
+    from tests.access_helpers import provision
+    provision(app)
     app.run(port=int(sys.argv[2]))

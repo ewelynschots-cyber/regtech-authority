@@ -21,7 +21,7 @@ A integração opcional de [automação processual](automation.md) consulta meta
 
 As informações sobre natureza e prioridade ficam na diligência documental; não se atribui ao cessionário uma preferência do credor originário. A análise não determina automaticamente prazo, posição na fila ou direito ao pagamento. Não aplica atualização judicial, índices monetários ou tributos legais automaticamente.
 
-O nome do revisor continua declarado e não autenticado. Login, permissões e isolamento por organização permanecem na etapa posterior já acordada. A validação deve utilizar os exemplos fictícios.
+A autoria das revisões vem da sessão autenticada, com perfis e isolamento por organização; veja [Acesso](access-control.md). A validação deve utilizar os exemplos fictícios.
 
 ## Contrato da API
 

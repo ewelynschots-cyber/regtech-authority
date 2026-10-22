@@ -1,3 +1,4 @@
+from tests.access_helpers import authenticated_client
 import io
 import json
 import urllib.error
@@ -32,7 +33,7 @@ def client():
     app=create_app({'TESTING':True,'SQLALCHEMY_DATABASE_URI':'sqlite:///:memory:','DATAJUD_API_KEY':'test-key-not-real'})
     with app.app_context():
         db.create_all()
-        yield app.test_client()
+        yield authenticated_client(app)
         db.session.remove();db.drop_all()
 
 
