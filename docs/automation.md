@@ -58,3 +58,31 @@ Nenhuma tarefa recorrente ou aviso por e-mail foi ativado nesta entrega. As cons
 ## Validação
 
 Os testes automatizados usam transporte HTTP substituído por respostas de teste, incluindo processo localizado, ausência de correspondência, resposta parcial, sigilo inesperado, tribunal incorreto, chave ausente, timeout, acesso recusado, cache, vínculo ao dossiê e atualização da lista de diligências. A integração visual simulada também usa uma fonte explicitamente fictícia; isso não é teste de disponibilidade real do CNJ.
+
+## PDF e reconsultas
+
+`POST /api/automation/documents/extract` recebe multipart `file`: até 3 MB,
+10 páginas, texto limitado por página. OCR local (Tesseract/Poppler) nas duas
+primeiras páginas sem texto. PDFs com senha são recusados. Arquivos temporários
+são removidos ao terminar; resposta inclui SHA-256, páginas, método e sugestões.
+Valores monetários permanecem sem classificação; número CNJ pode ser aplicado
+pelo usuário. Nenhuma confirmação jurídica é preenchida pelo OCR.
+
+O Dockerfile instala OCR e português; o extrator usa inglês para números e texto
+básico nesta versão. Em runtime sem esses executáveis, a resposta declara extração
+parcial e `ocr_unavailable`.
+
+`POST /api/automation/monitors` cadastra um processo válido, com `enabled` booleano.
+`GET /api/automation/monitors` lista vencimentos e a referência da última consulta.
+Cada execução persiste um SourceLookup consultável por ID, sem alterar análises.
+A reconsulta é diária após resposta e tenta novamente após uma hora se indisponível.
+O comando `flask --app wsgi recheck-processes` processa até cinco vencimentos.
+
+O workflow `.github/workflows/rechecks.yml` aciona o servidor a cada 30 minutos,
+com OIDC validado por emissor, audiência, repositório, branch e caminho exato do
+workflow; não há senha de execução pública. Horários do GitHub são aproximados.
+O endpoint de execução recusa chamadas sem token autorizado. É necessário verificar
+uma execução real no GitHub Actions antes de considerar o agendamento validado.
+SQLite em disco efêmero do Render pode perder registros em deploy/reinício; para
+monitoramento permanente é necessário banco persistente. Este recurso ainda atende
+à fase de validação da plataforma.

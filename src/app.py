@@ -49,6 +49,12 @@ def create_app(config=None):
     app.register_blueprint(financial_api)
     from src.routes.automation import source_api
     app.register_blueprint(source_api)
+    from src.models.process_monitor import ProcessMonitor
+
+    @app.cli.command("recheck-processes")
+    def recheck_processes():
+        from src.services.rechecks import run_due
+        print(f"Reconsultas registradas: {run_due()}")
 
     @app.cli.command('init-db')
     def init_db():
