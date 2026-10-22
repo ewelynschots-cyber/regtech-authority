@@ -9,7 +9,8 @@ class Role(enum.Enum):
     viewer = 'viewer'
 
 class User(db.Model):
-    __tablename__ = 'users'
+    __tablename__ = 'org_users'
+    organization_id = db.Column(db.String(36), db.ForeignKey('portal_organizations.id'), nullable=True, index=True)
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -19,13 +20,14 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def __init__(self, name, email, password, role='viewer', is_active=True):
+    def __init__(self, name, email, password, role='viewer', is_active=True, organization_id=None):
         if not name:
             raise ValueError("Name cannot be empty")
         if not email or '@' not in email:
             raise ValueError("Invalid email")
         if not password:
             raise ValueError("Password cannot be empty")
+        self.organization_id = organization_id
         self.name = name
         self.email = email
         self.set_password(password)

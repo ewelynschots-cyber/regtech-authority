@@ -1,10 +1,12 @@
 import logging
-from flask import Flask, request, Blueprint, render_template
+import os
+from flask import Flask, request, Blueprint, render_template, g, redirect
 from flask_restx import Api, Resource, Namespace
 from sqlalchemy.exc import IntegrityError
 from src import db
 from src.models import Customer, KycProcess, CustomerType, RiskLevel, Status, KycStatus, User
 from src.services.address_alert_service import calculate_risk_level
+from src.access import scoped, owned, owner_values
 
 logger = logging.getLogger(__name__)
 CUSTOMER_FIELDS = {'name', 'email', 'customer_type', 'cpf_cnpj', 'phone', 'address', 'risk_level', 'status'}
@@ -38,10 +40,14 @@ def customer_data(data, partial=False):
 
 def create_app(config=None):
     app = Flask(__name__)
-    app.config.update(SQLALCHEMY_DATABASE_URI='sqlite:///kyc.db', SQLALCHEMY_TRACK_MODIFICATIONS=False)
+    app.config.update(SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///kyc.db'), SQLALCHEMY_TRACK_MODIFICATIONS=False, PUBLIC_ORIGIN=os.getenv('PUBLIC_ORIGIN'))
     if config:
         app.config.update(config)
     db.init_app(app)
+    from werkzeug.security import generate_password_hash
+    app.config['AUTH_DUMMY_HASH'] = generate_password_hash('not-a-real-account-password', method='pbkdf2:sha256')
+    from src.access import install_access
+    install_access(app)
     from src.routes.financial import financial_api
     app.config.setdefault('MAX_CONTENT_LENGTH', 3_000_000)
     if app.config['MAX_CONTENT_LENGTH'] is None:
@@ -64,7 +70,7 @@ def create_app(config=None):
 
     @app.get('/')
     def financial_portal():
-        return render_template('financial.html')
+        return render_template('financial.html') if g.user else redirect('/login')
     api_bp = Blueprint('api', __name__, url_prefix='/api')
     api = Api(api_bp, version='1.0', title='RegTech Authority API', doc='/docs')
     customers_ns = Namespace('customers', description='Customer operations')
@@ -75,11 +81,11 @@ def create_app(config=None):
     @customers_ns.route('/', strict_slashes=False)
     class CustomerList(Resource):
         def get(self):
-            return [c.to_dict() for c in Customer.query.all()]
+            return [c.to_dict() for c in scoped(Customer).all()]
 
         def post(self):
             try:
-                customer = Customer(**customer_data(request.get_json()))
+                customer = Customer(**customer_data(request.get_json()), **owner_values())
                 db.session.add(customer)
                 db.session.commit()
                 return customer.to_dict(), 201
@@ -93,8 +99,8 @@ def create_app(config=None):
     @customers_ns.route('/<int:id>')
     class CustomerDetail(Resource):
         def get(self, id):
-            customer = db.get_or_404(Customer, id)
-            duplicates = [c.id for c in Customer.query.filter_by(address=customer.address).all()]
+            customer = owned(Customer, id)
+            duplicates = [c.id for c in scoped(Customer).filter_by(address=customer.address).all()]
             alert = None
             if len(duplicates) > 1:
                 alert = {'risk_level': calculate_risk_level(len(duplicates)),
@@ -102,7 +108,7 @@ def create_app(config=None):
             return {'customer': customer.to_dict(), 'address_alert': alert}
 
         def put(self, id):
-            customer = db.get_or_404(Customer, id)
+            customer = owned(Customer, id)
             try:
                 data = customer_data(request.get_json(), partial=True)
                 for field, value in data.items():
@@ -118,7 +124,7 @@ def create_app(config=None):
                 return {'message': 'Cliente em conflito com cadastro existente'}, 409
 
         def delete(self, id):
-            customer = db.get_or_404(Customer, id)
+            customer = owned(Customer, id)
             from src.services.address_alert_service import AddressAlert
             if KycProcess.query.filter_by(customer_id=id).first() or AddressAlert.query.filter_by(customer_id=id).first():
                 return {'message': 'Cliente possui processos ou alertas vinculados'}, 409
@@ -133,7 +139,7 @@ def create_app(config=None):
     @kyc_ns.route('/', strict_slashes=False)
     class KycList(Resource):
         def get(self):
-            return [k.to_dict() for k in KycProcess.query.all()]
+            return [k.to_dict() for k in scoped(KycProcess).all()]
 
         def post(self):
             data = request.get_json()
@@ -147,9 +153,9 @@ def create_app(config=None):
                     continue
                 if type(value) is not int or value <= 0:
                     return {'message': 'Identificador inválido: ' + field}, 400
-            if db.session.get(Customer, data['customer_id']) is None:
+            if scoped(Customer).filter_by(id=data['customer_id']).first() is None:
                 return {'message': 'Cliente não encontrado'}, 404
-            if data.get('analyst_id') is not None and db.session.get(User, data['analyst_id']) is None:
+            if data.get('analyst_id') is not None and scoped(User).filter_by(id=data['analyst_id']).first() is None:
                 return {'message': 'Analista não encontrado'}, 404
             try:
                 if 'status' in data:
@@ -157,7 +163,7 @@ def create_app(config=None):
                 for field in ('risk_assessment', 'notes'):
                     if field in data and data[field] is not None and not isinstance(data[field], str):
                         raise ValueError('Campo inválido: ' + field)
-                process = KycProcess(**data)
+                process = KycProcess(**data, **owner_values())
                 db.session.add(process)
                 db.session.commit()
                 return process.to_dict(), 201

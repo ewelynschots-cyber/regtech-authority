@@ -3,7 +3,8 @@ from src import db
 
 
 class SourceLookup(db.Model):
-    __tablename__='source_lookups'
+    __tablename__='org_source_lookups'
+    organization_id = db.Column(db.String(36), db.ForeignKey('portal_organizations.id'), nullable=True, index=True)
     id=db.Column(db.String(36),primary_key=True,default=lambda:str(uuid4()))
     provider=db.Column(db.String(30),nullable=False)
     process_number=db.Column(db.String(20),nullable=False,index=True)

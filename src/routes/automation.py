@@ -2,6 +2,7 @@ import os
 from datetime import datetime,timezone,timedelta
 from flask import Blueprint,current_app,jsonify,request
 from src import db
+from src.access import scoped, owned, owner_values
 from src.integrations.datajud import identify_process,lookup_process
 from src.models.source_lookup import SourceLookup
 from src.services.financial_analysis import InputError,object_fields,canonical_hash
@@ -30,7 +31,7 @@ def status():
 def process_lookup():
     body=object_fields(request.get_json(),{'process_number'},'Consulta')
     process=identify_process(body.get('process_number'))
-    latest=SourceLookup.query.filter_by(provider='datajud',process_number=process['number']).order_by(SourceLookup.checked_at.desc()).first()
+    latest=scoped(SourceLookup).filter_by(provider='datajud',process_number=process['number']).order_by(SourceLookup.checked_at.desc()).first()
     if latest:
         age=datetime.now(timezone.utc)-datetime.fromisoformat(latest.checked_at)
         ttl=timedelta(minutes=15) if latest.status in ('found','not_found') else timedelta(seconds=60)
@@ -38,7 +39,7 @@ def process_lookup():
             return jsonify(lookup_report(latest,True))
     key=current_app.config.get('DATAJUD_API_KEY') or os.getenv('DATAJUD_API_KEY')
     payload=lookup_process(process['number'],key)
-    row=SourceLookup(provider='datajud',process_number=process['number'],checked_at=payload['checked_at'],
+    row=SourceLookup(**owner_values(), provider='datajud',process_number=process['number'],checked_at=payload['checked_at'],
                      status=payload['status'],payload=payload,payload_sha256=canonical_hash(payload))
     db.session.add(row)
     db.session.commit()
@@ -47,7 +48,7 @@ def process_lookup():
 
 @source_api.get('/process/<string:identifier>')
 def snapshot(identifier):
-    return jsonify(lookup_report(db.get_or_404(SourceLookup,identifier)))
+    return jsonify(lookup_report(owned(SourceLookup,identifier)))
 
 
 @source_api.post('/documents/extract')
@@ -67,9 +68,9 @@ def monitor_process():
     enabled = body.get('enabled', True)
     if type(enabled) is not bool:
         raise InputError('enabled deve ser booleano.')
-    row = ProcessMonitor.query.filter_by(process_number=process['number']).first()
+    row = scoped(ProcessMonitor).filter_by(process_number=process['number']).first()
     if row is None:
-        row = ProcessMonitor(process_number=process['number'], next_check=datetime.now(timezone.utc).isoformat())
+        row = ProcessMonitor(**owner_values(), process_number=process['number'], next_check=datetime.now(timezone.utc).isoformat())
         db.session.add(row)
     row.enabled = enabled
     db.session.commit()
@@ -81,7 +82,7 @@ def monitors():
     from src.models.process_monitor import ProcessMonitor
     return jsonify(items=[{'id':r.id,'process_number':r.process_number,'enabled':r.enabled,
                            'next_check':r.next_check,'last_lookup_id':r.last_lookup_id}
-                          for r in ProcessMonitor.query.order_by(ProcessMonitor.next_check).limit(100)])
+                          for r in scoped(ProcessMonitor).order_by(ProcessMonitor.next_check).limit(100)])
 
 
 @source_api.post('/run-due')

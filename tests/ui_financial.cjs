@@ -5,7 +5,7 @@ const {mkdtempSync, rmSync} = require('node:fs');
 const {tmpdir} = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
-const {JSDOM, VirtualConsole} = require('jsdom');
+const {JSDOM, VirtualConsole, CookieJar} = require('jsdom');
 const root = path.resolve(__dirname, '..');
 let server, dom, directory;
 
@@ -16,18 +16,24 @@ async function main() {
   });
   const base = `http://127.0.0.1:${port}`;
   directory = mkdtempSync(path.join(tmpdir(), 'regtech-ui-'));
-  const code = "import sys; from src.app import create_app; from src import db; app=create_app({'SQLALCHEMY_DATABASE_URI':'sqlite:///'+sys.argv[1]}); ctx=app.app_context(); ctx.push(); db.create_all(); app.run(port=int(sys.argv[2]))";
   server = spawn(process.env.PYTHON || 'python', [path.join(root,'tests','ui_server.py'), path.join(directory, 'test.db'), String(port)], {cwd:root, stdio:['ignore','ignore','pipe']});
   let serverOutput='';server.stderr.on('data', chunk => {serverOutput+=chunk;});
   let ready=false;
   for(let i=0;i<100;i++) { try { const response=await fetch(base); if(response.ok) {ready=true;break;} } catch {} await new Promise(r=>setTimeout(r,100)); }
   assert.ok(ready, 'Test server did not start: '+serverOutput);
   const errors=[], virtualConsole=new VirtualConsole();virtualConsole.on('jsdomError',error=>errors.push(error.message));
-  dom=await JSDOM.fromURL(base,{resources:'usable',runScripts:'dangerously',virtualConsole,
-    beforeParse(window){window.fetch=(url,options)=>fetch(new URL(url,window.location.href),options);}});
+  const login=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'admin@example.test',password:'fictitious-password-2026'})});
+  assert.equal(login.status,200);
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const cookieJar=new CookieJar();cookieJar.setCookieSync(cookie,base);
+  const authedFetch=(url,options={})=>{const headers=new Headers(options.headers||{});if(new URL(url,base).origin===base)headers.set('Cookie',cookie);return fetch(url,{...options,headers});};
+  dom=await JSDOM.fromURL(base,{cookieJar,resources:'usable',runScripts:'dangerously',virtualConsole,
+    beforeParse(window){window.Headers=Headers;window.fetch=(url,options)=>authedFetch(new URL(url,window.location.href),options);}});
   const {window}=dom, doc=window.document;
   const wait=async(fn)=>{for(let n=0;n<100;n++){if(fn())return;await new Promise(r=>setTimeout(r,50));}throw new Error('Timeout: '+doc.querySelector('#message')?.textContent);};
-  await wait(()=>doc.readyState==='complete');
+  await wait(()=>doc.readyState==='complete' && window.regtechIdentity);
+  assert.match(doc.querySelector('#access-identity').textContent,/Revisor fictício/);
+  assert.equal(doc.querySelector('#access-workspace').hidden,false);
   doc.querySelector('[data-tab=cdb]').click();assert.equal(doc.querySelector('#cdb').hidden,false);
   // Repeated demo loading must not mix candidate values with dynamic peer/position fields.
   for(let run=0;run<2;run++){
@@ -46,7 +52,7 @@ async function main() {
   assert.match(doc.querySelector('#reviews').textContent,/Revisor fictício/);
   doc.querySelector('[data-tab=history]').click();await wait(()=>doc.querySelector('#history-list button'));
   doc.querySelector('#history-list button').click();await wait(()=>doc.querySelector('#message').textContent==='Análise carregada.');
-  const exported=await fetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base));
+  const exported=await authedFetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base));
   assert.equal(exported.status,200);const json=await exported.json();assert.equal(json.revision,1);
   assert.deepEqual(json.integrity,{input_matches:true,result_matches:true,review_chain_matches:true});
   assert.equal(errors.length,0);
@@ -64,7 +70,7 @@ async function main() {
   assert.match(doc.querySelector('#report-module').textContent,/PRECATÓRIOS/);
   assert.match(doc.querySelector('#report-detail').textContent,/CESSIONARIO-C-FICTICIO/);
   assert.match(doc.querySelector('#report-detail').textContent,/25.0000%/);
-  const creditExport=await fetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base));
+  const creditExport=await authedFetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base));
   const creditJson=await creditExport.json();
   assert.equal(creditJson.result.module,'credits');
   assert.equal(creditJson.result.credits[0].assignment_chain.declared_holder_nominal_share,'40000.00');
@@ -75,10 +81,10 @@ async function main() {
   creditForm.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await wait(()=>doc.querySelector('#message').textContent==='Crédito e cadeia de cessões analisados e registrados.' && doc.querySelector('#process-lookup-result').textContent.includes('Metadados públicos localizados'));
   assert.equal(creditForm.elements.credit_court.value,'TRF1');
-  const enriched=await (await fetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base))).json();
+  const enriched=await (await authedFetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base))).json();
   assert.equal(enriched.result.process_queries.length,1);
   assert.equal(enriched.result.credits[0].holder_confirmed,null);
-  const checklist=await fetch(new URL(doc.querySelector('#checklist-link').getAttribute('href'),base));
+  const checklist=await authedFetch(new URL(doc.querySelector('#checklist-link').getAttribute('href'),base));
   assert.equal(checklist.status,200);assert.match(await checklist.text(),/Tarefa de diligência/);
   assert.equal(errors.length,0);
   console.log('PASS: CDB/credit workflows, automatic process lookup (mocked), court prefill, query evidence and checklist CSV.');

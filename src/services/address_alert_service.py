@@ -3,14 +3,16 @@ import os
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from src import db
+from src.access import scoped, owned, owner_values
 from src.models import Customer
 
 logger = logging.getLogger(__name__)
 
 class AddressAlert(db.Model):
-    __tablename__ = 'address_alerts'
+    __tablename__ = 'org_address_alerts'
+    organization_id = db.Column(db.String(36), db.ForeignKey('portal_organizations.id'), nullable=True, index=True)
     id = Column(Integer, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
+    customer_id = Column(Integer, ForeignKey('org_customers.id'), nullable=False)
     address = Column(String(255), nullable=False)
     customer_count = Column(Integer, default=0)
     risk_level = Column(String(20), nullable=False)
@@ -23,7 +25,7 @@ MAX_CUSTOMERS_PER_ADDRESS = int(os.getenv('MAX_CUSTOMERS_PER_ADDRESS', 5))
 def check_address_duplicates(address, exclude_customer_id=None):
     """Verifica se existem múltiplos clientes no mesmo endereço."""
     try:
-        query = db.session.query(Customer).filter(Customer.address == address)
+        query = scoped(Customer).filter(Customer.address == address)
         if exclude_customer_id:
             query = query.filter(Customer.id != exclude_customer_id)
         return query.count() > 0
@@ -34,7 +36,7 @@ def check_address_duplicates(address, exclude_customer_id=None):
 def get_duplicate_customers(address, exclude_customer_id=None):
     """Retorna lista de IDs de clientes associados ao mesmo endereço."""
     try:
-        query = db.session.query(Customer.id).filter(Customer.address == address)
+        query = scoped(Customer).with_entities(Customer.id).filter(Customer.address == address)
         if exclude_customer_id:
             query = query.filter(Customer.id != exclude_customer_id)
         return [c.id for c in query.all()]
@@ -53,7 +55,8 @@ def calculate_risk_level(customer_count):
 def create_alert(customer_id, risk_level, address=None):
     """Cria um novo registro de alerta de endereço."""
     try:
-        alert = AddressAlert(
+        owned(Customer, customer_id)
+        alert = AddressAlert(**owner_values(),
             customer_id=customer_id,
             address=address,
             risk_level=risk_level,

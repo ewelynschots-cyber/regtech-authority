@@ -3,3 +3,8 @@ instance
 .pytest_cache
 __pycache__
 .git
+
+.venv
+venv
+.env
+*.db

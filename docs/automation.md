@@ -44,7 +44,7 @@ Endpoints:
 | 4 | Atualização de dados de emissores e ofertas de CDB | Fontes autorizadas, comparabilidade e datas de referência |
 | 5 | Screening/KYC/KYB recorrente | Fontes habilitadas, correspondência de identidade e tratamento de homônimos |
 
-Nenhuma tarefa recorrente ou aviso por e-mail foi ativado nesta entrega. As consultas são disparadas pelo fluxo de uso; não há monitoramento permanente. Login, permissões, isolamento por organização e persistência de produção permanecem etapas posteriores já identificadas.
+Nenhuma tarefa recorrente ou aviso por e-mail foi ativado nesta entrega. As consultas são disparadas pelo fluxo de uso; não há monitoramento permanente. Login, perfis e isolamento estão na [camada de acesso](access-control.md). Persistência de produção continua pendente.
 
 ## Fontes oficiais
 

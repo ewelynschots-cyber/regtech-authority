@@ -32,11 +32,14 @@ def validate_cnpj(cnpj):
     return True
 
 class Customer(db.Model):
-    __tablename__ = 'customers'
+    __tablename__ = 'org_customers'
+    organization_id = db.Column(db.String(36), db.ForeignKey('portal_organizations.id'), nullable=True, index=True)
+
+    __table_args__ = (db.UniqueConstraint('organization_id', 'cpf_cnpj'),)
 
     id = db.Column(db.Integer, primary_key=True)
     customer_type = db.Column(db.Enum(CustomerType), nullable=False)
-    cpf_cnpj = db.Column(db.String(20), unique=True, nullable=False)
+    cpf_cnpj = db.Column(db.String(20), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
