@@ -6,3 +6,6 @@ Flask-CORS==4.0.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
 psycopg2-binary==2.9.9
+
+pypdf==6.10.0
+PyJWT[crypto]==2.10.1

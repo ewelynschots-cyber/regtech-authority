@@ -48,3 +48,57 @@ def process_lookup():
 @source_api.get('/process/<string:identifier>')
 def snapshot(identifier):
     return jsonify(lookup_report(db.get_or_404(SourceLookup,identifier)))
+
+
+@source_api.post('/documents/extract')
+def document_extract():
+    from src.services.pdf_extraction import extract_pdf
+    uploaded = request.files.get('file')
+    if not uploaded:
+        raise InputError('Selecione um PDF.')
+    return jsonify(extract_pdf(uploaded.read(3_000_001)))
+
+
+@source_api.post('/monitors')
+def monitor_process():
+    from src.models.process_monitor import ProcessMonitor
+    body = object_fields(request.get_json(), {'process_number','enabled'}, 'Monitoramento')
+    process = identify_process(body.get('process_number'))
+    enabled = body.get('enabled', True)
+    if type(enabled) is not bool:
+        raise InputError('enabled deve ser booleano.')
+    row = ProcessMonitor.query.filter_by(process_number=process['number']).first()
+    if row is None:
+        row = ProcessMonitor(process_number=process['number'], next_check=datetime.now(timezone.utc).isoformat())
+        db.session.add(row)
+    row.enabled = enabled
+    db.session.commit()
+    return jsonify(id=row.id, enabled=row.enabled, next_check=row.next_check),201
+
+
+@source_api.get('/monitors')
+def monitors():
+    from src.models.process_monitor import ProcessMonitor
+    return jsonify(items=[{'id':r.id,'process_number':r.process_number,'enabled':r.enabled,
+                           'next_check':r.next_check,'last_lookup_id':r.last_lookup_id}
+                          for r in ProcessMonitor.query.order_by(ProcessMonitor.next_check).limit(100)])
+
+
+@source_api.post('/run-due')
+def scheduled_rechecks():
+    import jwt
+    from src.services.rechecks import run_due
+    authorization = request.headers.get('Authorization','')
+    if not authorization.startswith('Bearer '):
+        return jsonify(message='Credencial do agendador necessária.'),401
+    token = authorization[7:]
+    try:
+        client = jwt.PyJWKClient('https://token.actions.githubusercontent.com/.well-known/jwks',timeout=5)
+        claims = jwt.decode(token,client.get_signing_key_from_jwt(token).key,algorithms=['RS256'],
+                            audience='https://plataforma-kyc1.onrender.com',issuer='https://token.actions.githubusercontent.com',
+                            options={'require':['exp','iat','sub','workflow_ref']})
+        if claims['sub'] != 'repo:ewelynschots-cyber/regtech-authority:ref:refs/heads/main' or claims['workflow_ref'] != 'ewelynschots-cyber/regtech-authority/.github/workflows/rechecks.yml@refs/heads/main':
+            return jsonify(message='Agendador não autorizado.'),403
+    except (jwt.PyJWTError, ValueError, OSError):
+        return jsonify(message='Credencial do agendador inválida.'),401
+    return jsonify(processed=run_due())
