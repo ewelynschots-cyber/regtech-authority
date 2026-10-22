@@ -1,12 +1,17 @@
 import hashlib
 import json
+import csv
+import io
+import re
 from flask import Blueprint, jsonify, request, Response
 from sqlalchemy.exc import IntegrityError
 from src import db
 from src.models.financial_analysis import FinancialAnalysis, FinancialReview, now_iso
 from src.services.credit_analysis import analyze_credits
+from src.models.source_lookup import SourceLookup
+from src.integrations.datajud import identify_process
 from src.services.financial_analysis import (
-    InputError, analyze_fidc, analyze_cdb, canonical_hash, csv_receivables, object_fields, text,
+    InputError, analyze_fidc, analyze_cdb, canonical_hash, csv_receivables, object_fields, text, flag,
 )
 
 financial_api = Blueprint('financial_api', __name__, url_prefix='/api/financial')
@@ -34,7 +39,10 @@ def report(analysis):
             alerts[event['alert_id']]['status'] = event['status']
         else:
             chain_ok = False
-    return {'id': analysis.id, 'created_at': analysis.created_at, 'result': result,
+    checklist = [{'alert_id': a['id'], 'status': a['status'], 'task': a['message'],
+                  'row': a.get('row'), 'evidence': a.get('evidence', {})}
+                 for a in result['alerts'] if a['status'] in ('open', 'in_review')]
+    return {'id': analysis.id, 'created_at': analysis.created_at, 'result': result, 'diligence_checklist': checklist,
             'revision': len(events), 'input_sha256': analysis.input_sha256,
             'result_sha256': analysis.result_sha256,
             'integrity': {'input_matches': canonical_hash(analysis.input_payload) == analysis.input_sha256,
@@ -91,6 +99,37 @@ def save_credit_analysis(payload, artifact=None):
         portfolio = db.get_or_404(FinancialAnalysis, linked)
         if portfolio.module != 'fidc':
             raise InputError('A análise vinculada deve pertencer ao módulo FIDC')
+    result['process_queries'] = []
+    for identifier in result['process_lookup_ids']:
+        snapshot = db.get_or_404(SourceLookup, identifier)
+        if canonical_hash(snapshot.payload) != snapshot.payload_sha256:
+            raise InputError('Consulta com divergência de integridade')
+        lookup = snapshot.payload
+        matching = []
+        for credit in result['credits']:
+            try:
+                number = identify_process(credit.get('process_number'))['number']
+            except InputError:
+                continue
+            if number == lookup['process']['number']:
+                matching.append(credit)
+        if not matching:
+            raise InputError('Consulta vinculada não corresponde aos processos da carteira')
+        result['process_queries'].append({'id': snapshot.id, 'payload': lookup, 'payload_sha256': snapshot.payload_sha256})
+        if lookup.get('source_url'):
+            result['sources'].append(lookup['source_url'])
+        for credit in matching:
+            evidence = {'lookup_id': snapshot.id, 'process_number': lookup['process']['number'], 'checked_at': lookup['checked_at']}
+            if lookup['status'] != 'found' or not lookup['complete']:
+                flag(result['alerts'], 'PUBLIC_PROCESS_CHECK_PENDING',
+                     'Consulta pública indisponível, incompleta ou sem correspondência; conferir a fonte', row=credit['row'],
+                     evidence={**evidence, 'status': lookup['status'], 'error_code': lookup.get('error_code')})
+            court = (credit.get('court') or '').upper().strip()
+            if re.fullmatch(r'(TJ[A-Z]{2,3}|TRF[1-6]|TRT[0-9]{1,2})', court) and court != lookup['process']['court']:
+                flag(result['alerts'], 'PROCESS_COURT_MISMATCH', 'Tribunal declarado diverge da numeração CNJ',
+                     row=credit['row'], evidence={**evidence, 'declared_court': court, 'inferred_court': lookup['process']['court']})
+    result['sources'] = sorted(set(result['sources']))
+    result['summary']['alert_count'] = len(result['alerts'])
     return save_analysis('credits', payload, result, artifact)
 
 
@@ -146,6 +185,22 @@ def export(identifier):
     analysis = db.get_or_404(FinancialAnalysis, identifier)
     return Response(json.dumps({**report(analysis), 'input': analysis.input_payload}, ensure_ascii=False, indent=2),
                     mimetype='application/json', headers={'Content-Disposition': f'attachment; filename="regtech-{analysis.id}.json"'})
+
+
+@financial_api.get('/analyses/<string:identifier>/checklist.csv')
+def checklist_export(identifier):
+    data = report(db.get_or_404(FinancialAnalysis, identifier))
+    stream = io.StringIO()
+    writer = csv.writer(stream, delimiter=';')
+    writer.writerow(['Alerta', 'Status', 'Tarefa de diligência', 'Linha', 'Evidência'])
+    def safe_cell(value):
+        value = str(value if value is not None else '')
+        return "'" + value if value.lstrip().startswith(('=', '+', '-', '@')) else value
+    for task in data['diligence_checklist']:
+        writer.writerow([safe_cell(task['alert_id']), safe_cell(task['status']), safe_cell(task['task']),
+                         safe_cell(task['row']), safe_cell(json.dumps(task['evidence'], ensure_ascii=False))])
+    return Response('\ufeff' + stream.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': f'attachment; filename="pendencias-{identifier}.csv"'})
 
 
 @financial_api.post('/analyses/<string:identifier>/reviews')

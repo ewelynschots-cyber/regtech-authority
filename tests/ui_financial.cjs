@@ -17,7 +17,7 @@ async function main() {
   const base = `http://127.0.0.1:${port}`;
   directory = mkdtempSync(path.join(tmpdir(), 'regtech-ui-'));
   const code = "import sys; from src.app import create_app; from src import db; app=create_app({'SQLALCHEMY_DATABASE_URI':'sqlite:///'+sys.argv[1]}); ctx=app.app_context(); ctx.push(); db.create_all(); app.run(port=int(sys.argv[2]))";
-  server = spawn(process.env.PYTHON || 'python', ['-c', code, path.join(directory, 'test.db'), String(port)], {cwd:root, stdio:['ignore','ignore','pipe']});
+  server = spawn(process.env.PYTHON || 'python', [path.join(root,'tests','ui_server.py'), path.join(directory, 'test.db'), String(port)], {cwd:root, stdio:['ignore','ignore','pipe']});
   let serverOutput='';server.stderr.on('data', chunk => {serverOutput+=chunk;});
   let ready=false;
   for(let i=0;i<100;i++) { try { const response=await fetch(base); if(response.ok) {ready=true;break;} } catch {} await new Promise(r=>setTimeout(r,100)); }
@@ -69,7 +69,19 @@ async function main() {
   assert.equal(creditJson.result.module,'credits');
   assert.equal(creditJson.result.credits[0].assignment_chain.declared_holder_nominal_share,'40000.00');
   assert.equal(errors.length,0);
-  console.log('PASS: CDB and credit forms, repeated demos, partial assignments, scenarios, report, review, history and JSON export; no JavaScript errors.');
+  const creditForm=doc.querySelector('#credits-form');
+  creditForm.elements.credit_process_number.value='00008323520184013202';
+  creditForm.elements.credit_court.value='';
+  creditForm.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await wait(()=>doc.querySelector('#message').textContent==='Crédito e cadeia de cessões analisados e registrados.' && doc.querySelector('#process-lookup-result').textContent.includes('Metadados públicos localizados'));
+  assert.equal(creditForm.elements.credit_court.value,'TRF1');
+  const enriched=await (await fetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base))).json();
+  assert.equal(enriched.result.process_queries.length,1);
+  assert.equal(enriched.result.credits[0].holder_confirmed,null);
+  const checklist=await fetch(new URL(doc.querySelector('#checklist-link').getAttribute('href'),base));
+  assert.equal(checklist.status,200);assert.match(await checklist.text(),/Tarefa de diligência/);
+  assert.equal(errors.length,0);
+  console.log('PASS: CDB/credit workflows, automatic process lookup (mocked), court prefill, query evidence and checklist CSV.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
   dom?.window.close();

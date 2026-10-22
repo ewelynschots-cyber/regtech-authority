@@ -28,6 +28,7 @@
   $('#add-assignment').addEventListener('click',()=>addCreditEntry('assignment'));
   $('#add-credit-scenario').addEventListener('click',()=>addCreditEntry('scenario'));
   form.addEventListener('submit',event=>{event.preventDefault();busy(form,async()=>{
+    if(window.ensureCreditProcessLookup) await window.ensureCreditProcessLookup(form);
     const values=Object.fromEntries(new FormData(form));
     const credit={kind:values.credit_kind,assignments:entries('#credit-assignments')};
     for(const key of ['credit_id','debtor_ref','original_holder_ref','declared_holder_ref','face_amount','encumbrance_status','dispute_status']) credit[key]=values['credit_'+key];
@@ -36,6 +37,7 @@
     if(form.elements.use_economic.checked) credit.economic={acquired_face_amount:values.economic_acquired_face_amount,purchase_price:values.economic_purchase_price,upfront_costs:values.economic_upfront_costs,scenarios:entries('#credit-scenarios').map(row=>({...row,months_to_receipt:Number(row.months_to_receipt)}))};
     const payload={name:values.name,as_of:values.as_of,source_ref:values.source_ref,credits:[credit]};
     if(values.linked_fidc_analysis_id)payload.linked_fidc_analysis_id=values.linked_fidc_analysis_id;
+    if(window.creditProcessLookupIds) payload.process_lookup_ids=window.creditProcessLookupIds(form);
     const report=await api('/credits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     showReport(report);message('Crédito e cadeia de cessões analisados e registrados.');
   });});
@@ -56,6 +58,7 @@
     message('Exemplo fictício de precatório carregado. Clique em Analisar crédito e cessões.');
   }));
   window.renderCreditReport=(result,metrics,detail)=>{
+    if(window.renderProcessQueries)window.renderProcessQueries(result,detail);
     metrics.append(metric(String(result.summary.credit_count),'Créditos analisados'),metric(brl(result.summary.declared_face_total),'Total nominal declarado, incluindo possíveis repetições'));
     if(result.linked_fidc_analysis_id) detail.append(node('p','Análise FIDC vinculada: '+result.linked_fidc_analysis_id));
     const kinds={precatorio:'Precatório',judicial:'Crédito judicial',contractual:'Crédito contratual'};

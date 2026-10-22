@@ -17,7 +17,7 @@
 
 ## Limites da análise
 
-Não consulta automaticamente tribunais, listas de pagamento, processos ou registradoras, não lê/autentica PDFs e não certifica titularidade, exigibilidade, ausência de ônus ou validade jurídica de cessão. Os documentos são referências declaradas. Os números de processo e precatório são identificadores textuais, inclusive para permitir referências legadas; não se realiza validação de dígito verificador nem de existência no tribunal.
+A integração opcional de [automação processual](automation.md) consulta metadados públicos no DataJud. Não consulta saldos/listas de pagamento ou registros de cessão, não lê/autentica PDFs e não certifica titularidade, exigibilidade, ausência de ônus ou validade jurídica de cessão. Os documentos são referências declaradas. Os números de processo e precatório são identificadores textuais, inclusive para permitir referências legadas; não se realiza validação de dígito verificador nem de existência no tribunal.
 
 As informações sobre natureza e prioridade ficam na diligência documental; não se atribui ao cessionário uma preferência do credor originário. A análise não determina automaticamente prazo, posição na fila ou direito ao pagamento. Não aplica atualização judicial, índices monetários ou tributos legais automaticamente.
 

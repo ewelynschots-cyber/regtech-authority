@@ -71,6 +71,7 @@ function table(parent, headers, rows) {const wrap=node('div',undefined,'table-wr
 function showReport(data) {
   currentReport=data;const result=data.result;$('#report').hidden=false;$('#report-title').textContent=result.name;$('#report-module').textContent=({fidc:'LASTRO E RECEBÍVEIS · FIDCs',cdb:'EMISSOR E CAPTAÇÃO · CDBs',credits:'PRECATÓRIOS E DIREITOS CREDITÓRIOS'})[result.module];
   $('#export-link').href='/api/financial/analyses/'+encodeURIComponent(data.id)+'/export';
+  $('#checklist-link').href='/api/financial/analyses/'+encodeURIComponent(data.id)+'/checklist.csv';
   const metrics=$('#report-summary');metrics.replaceChildren();metrics.append(metric(String(result.summary.alert_count),'Pontos de atenção'));
   const detail=$('#report-detail');detail.replaceChildren();
   if(result.module==='credits') {
