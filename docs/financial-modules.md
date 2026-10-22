@@ -15,7 +15,7 @@ python -m flask --app src.app run
 python -m pytest -q
 ```
 
-O comando `init-db` cria tabelas ausentes e preserva tabelas e dados existentes. Não altera colunas existentes nem substitui um processo de migração. A aplicação utiliza o banco configurado em `create_app`; a configuração padrão do projeto continua SQLite. Não foi feito deploy nem configurado armazenamento persistente no Render nesta alteração. Não há carregamento de dados reais de clientes nesta etapa de validação.
+O comando `init-db` cria tabelas ausentes e preserva tabelas e dados existentes. Não altera colunas existentes nem substitui um processo de migração. A aplicação utiliza o banco configurado em `create_app`; a configuração padrão do projeto continua SQLite. No Render, o entrypoint `wsgi:app` cria as tabelas ausentes antes de atender requisições. Não foi configurado armazenamento persistente de produção nesta alteração. Não há carregamento de dados reais de clientes nesta etapa de validação.
 
 Tabelas adicionadas: `financial_analyses` e `financial_reviews`. Não há endpoints de alteração/exclusão das análises originais nem de revisão de eventos históricos. Um novo processamento gera um novo UUID.
 
@@ -94,8 +94,8 @@ As regras de conferência documental, comparação estatística e concentração
 
 ## Validação desta implementação
 
-- `python -m pytest -q`: 65 testes aprovados, cobrindo os testes existentes, entradas inválidas, duplicidades, cálculos decimais, critérios de comparação, limites FGC, integridade, revisão concorrente, importação e persistência.
+- `python -m pytest -q`: 66 testes aprovados, cobrindo os testes existentes, entradas inválidas, duplicidades, cálculos decimais, critérios de comparação, limites FGC, integridade, revisão concorrente, importação e persistência.
 - `npm ci && npm run test:ui`: aprovado. Exercita carregamento repetido do exemplo, preservação dos campos da oferta principal, envio do formulário CDB, apresentação do resultado, revisão, recuperação pelo histórico e exportação JSON, sem erros de JavaScript. Usa servidor e banco temporários.
 - `node --check src/static/financial.js`: aprovado.
 - Conferência visual em navegador real e nos tamanhos desktop/celular: pendente. A tentativa de instalar o Chromium de testes não foi concluída neste ambiente; nenhuma captura visual foi produzida.
-- Publicação no Render: não realizada. Login, permissões, separação por organização, persistência de produção e conectores externos permanecem etapas posteriores.
+- Publicação no Render: inicialização WSGI prepara tabelas ausentes sem apagar registros (teste dedicado de reinicialização). Login, permissões, separação por organização, persistência de produção e conectores externos permanecem etapas posteriores.

@@ -10,7 +10,7 @@ python -m flask --app src.app init-db
 python -m flask --app src.app run
 ```
 
-Abra `http://127.0.0.1:5000/` para usar os módulos financeiros. As entradas podem ser preenchidas ou importadas; os exemplos de carteiras e ofertas são fictícios. Esta etapa ainda não implementa autenticação, permissões ou separação por organização e não foi publicada no Render.
+Abra `http://127.0.0.1:5000/` para usar os módulos financeiros. As entradas podem ser preenchidas ou importadas; os exemplos de carteiras e ofertas são fictícios. Esta etapa ainda não implementa autenticação, permissões ou separação por organização e destina-se à validação com dados fictícios. No Render, o entrypoint `wsgi:app` cria as tabelas ausentes antes de atender requisições.
 
 ## Verificar
 
