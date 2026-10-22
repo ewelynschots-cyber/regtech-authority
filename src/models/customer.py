@@ -1,4 +1,4 @@
-from src.app import db
+from src import db
 from enum import Enum
 import re
 from datetime import datetime
@@ -60,3 +60,13 @@ class Customer(db.Model):
 
     def __repr__(self):
         return f'<Customer {self.id}: {self.name} ({self.customer_type.value})>'
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'name': self.name, 'email': self.email,
+            'customer_type': self.customer_type.name, 'cpf_cnpj': self.cpf_cnpj,
+            'phone': self.phone, 'address': self.address,
+            'risk_level': self.risk_level.name, 'status': self.status.name,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

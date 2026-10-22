@@ -26,3 +26,13 @@ class KycProcess(db.Model):
 
     def __repr__(self):
         return f'<KycProcess {self.id} - Customer {self.customer_id} - Status {self.status.value}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'customer_id': self.customer_id,
+            'analyst_id': self.analyst_id, 'status': self.status.name,
+            'risk_assessment': self.risk_assessment,
+            'documents_submitted': self.documents_submitted, 'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+        }

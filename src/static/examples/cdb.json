@@ -1,0 +1,88 @@
+{
+  "name": "Exemplo fictício · CDB",
+  "offer": {
+    "offer_id": "oferta-analisada",
+    "issuer_ref": "GRUPO-A-BANCO-FICTICIO",
+    "conglomerate_ref": "GRUPO-A",
+    "rate_percent_cdi": "118.00",
+    "term_days": 365,
+    "liquidity": "at_maturity",
+    "as_of": "2026-10-20",
+    "source_ref": "Exemplo fictício / oferta-analisada",
+    "indexer": "CDI",
+    "currency": "BRL"
+  },
+  "comparables": [
+    {
+      "offer_id": "P-1",
+      "issuer_ref": "GRUPO-B-BANCO-FICTICIO",
+      "conglomerate_ref": "GRUPO-B",
+      "rate_percent_cdi": "102.00",
+      "term_days": 365,
+      "liquidity": "at_maturity",
+      "as_of": "2026-10-20",
+      "source_ref": "Exemplo fictício / P-1",
+      "indexer": "CDI",
+      "currency": "BRL"
+    },
+    {
+      "offer_id": "P-2",
+      "issuer_ref": "GRUPO-C-BANCO-FICTICIO",
+      "conglomerate_ref": "GRUPO-C",
+      "rate_percent_cdi": "106.00",
+      "term_days": 365,
+      "liquidity": "at_maturity",
+      "as_of": "2026-10-20",
+      "source_ref": "Exemplo fictício / P-2",
+      "indexer": "CDI",
+      "currency": "BRL"
+    },
+    {
+      "offer_id": "P-3",
+      "issuer_ref": "GRUPO-D-BANCO-FICTICIO",
+      "conglomerate_ref": "GRUPO-D",
+      "rate_percent_cdi": "110.00",
+      "term_days": 365,
+      "liquidity": "at_maturity",
+      "as_of": "2026-10-20",
+      "source_ref": "Exemplo fictício / P-3",
+      "indexer": "CDI",
+      "currency": "BRL"
+    }
+  ],
+  "financials": {
+    "issuer_ref": "GRUPO-A-BANCO-FICTICIO",
+    "as_of": "2026-06-30",
+    "source_ref": "Balanço fictício / semestre",
+    "equity": "10000000.00",
+    "net_income": "-100000.00",
+    "deposits": "50000000.00"
+  },
+  "positions": [
+    {
+      "position_id": "SALDO-1",
+      "conglomerate_ref": "GRUPO-A",
+      "balance": "180000.00",
+      "source_ref": "Extrato fictício 1",
+      "as_of": "2026-10-20",
+      "eligible": true
+    },
+    {
+      "position_id": "SALDO-2",
+      "conglomerate_ref": "GRUPO-A",
+      "balance": "90000.00",
+      "source_ref": "Extrato fictício 2",
+      "as_of": "2026-10-20",
+      "eligible": true
+    },
+    {
+      "position_id": "SALDO-3",
+      "conglomerate_ref": "GRUPO-B",
+      "balance": "30000.00",
+      "source_ref": "Extrato fictício 3",
+      "as_of": "2026-10-20",
+      "eligible": true
+    }
+  ],
+  "concentration_limit_percent": "50.00"
+}
