@@ -18,7 +18,7 @@ async function busy(form, fn) {
   finally { form.classList.remove('busy'); form.removeAttribute('aria-busy'); }
 }
 function activate(tab) {
-  ['fidc','cdb','history'].forEach(id=>{ $('#'+id).hidden=id!==tab; });
+  ['fidc','cdb','credits','history'].forEach(id=>{ $('#'+id).hidden=id!==tab; });
   document.querySelectorAll('[data-tab]').forEach(el=>{ const active=el.dataset.tab===tab; el.classList.toggle('active',active); el.setAttribute('aria-pressed',String(active)); });
   $('#report').hidden=true;
   if(tab==='history') loadHistory(1).catch(error=>message(error.message,true));
@@ -69,11 +69,13 @@ $('#demo-cdb').addEventListener('click',()=>busy($('#cdb-form'),async()=>{
 function metric(value,label) {const el=node('div',undefined,'metric');el.append(node('strong',value),node('span',label));return el;}
 function table(parent, headers, rows) {const wrap=node('div',undefined,'table-wrap'),table=node('table'),head=node('tr');headers.forEach(h=>head.append(node('th',h)));table.append(head);rows.forEach(row=>{const tr=node('tr');row.forEach(cell=>tr.append(node('td',String(cell??'—'))));table.append(tr);});wrap.append(table);parent.append(wrap);}
 function showReport(data) {
-  currentReport=data;const result=data.result;$('#report').hidden=false;$('#report-title').textContent=result.name;$('#report-module').textContent=result.module==='fidc'?'LASTRO E RECEBÍVEIS · FIDCs':'EMISSOR E CAPTAÇÃO · CDBs';
+  currentReport=data;const result=data.result;$('#report').hidden=false;$('#report-title').textContent=result.name;$('#report-module').textContent=({fidc:'LASTRO E RECEBÍVEIS · FIDCs',cdb:'EMISSOR E CAPTAÇÃO · CDBs',credits:'PRECATÓRIOS E DIREITOS CREDITÓRIOS'})[result.module];
   $('#export-link').href='/api/financial/analyses/'+encodeURIComponent(data.id)+'/export';
   const metrics=$('#report-summary');metrics.replaceChildren();metrics.append(metric(String(result.summary.alert_count),'Pontos de atenção'));
   const detail=$('#report-detail');detail.replaceChildren();
-  if(result.module==='fidc') {
+  if(result.module==='credits') {
+    window.renderCreditReport(result, metrics, detail);
+  } else if(result.module==='fidc') {
     metrics.append(metric(String(result.summary.receivable_count),'Títulos importados'),metric(brl(result.summary.declared_total),'Total declarado, incluindo possíveis duplicidades'));
     table(detail,['Título','Cedente','Devedor','Valor','Documento'],result.receivables.map(r=>[r.title_id,r.originator_id,r.debtor_id,brl(r.amount),r.document_ref]));
   } else {
@@ -105,5 +107,5 @@ function showReport(data) {
   const reviews=$('#reviews');reviews.replaceChildren();if(!data.reviews.length) reviews.append(node('p','Nenhuma revisão registrada.'));
   data.reviews.forEach(row=>{const event=row.event;const record=node('div',undefined,'record');record.append(node('strong',event.alert_id+' · '+statuses[event.previous_status]+' → '+statuses[event.status]),node('p',event.reason),node('small',event.reviewer_declared+' · '+event.created_at+' · Evidência: '+event.evidence_ref));reviews.append(record);});
 }
-async function loadHistory(page=1){historyPage=page;const data=await api('/analyses?page='+page);const list=$('#history-list');list.replaceChildren();if(!data.items.length)list.append(node('p','Nenhuma análise registrada.'));data.items.forEach(item=>{const box=node('div',undefined,'record'),button=node('button',item.name+' · '+item.module.toUpperCase());button.type='button';button.addEventListener('click',()=>busy(box,async()=>{showReport(await api('/analyses/'+item.id));message('Análise carregada.');}));box.append(button,node('small',item.created_at+' · '+item.summary.alert_count+' pontos de atenção'));list.append(box);});const pages=$('#history-pagination');pages.replaceChildren();if(page>1){const previous=node('button','Anterior','secondary');previous.addEventListener('click',()=>loadHistory(page-1).catch(error=>message(error.message,true)));pages.append(previous);}if(page<data.pages){const next=node('button','Próxima','secondary');next.addEventListener('click',()=>loadHistory(page+1).catch(error=>message(error.message,true)));pages.append(next);}}
+async function loadHistory(page=1){historyPage=page;const data=await api('/analyses?page='+page);const list=$('#history-list');list.replaceChildren();if(!data.items.length)list.append(node('p','Nenhuma análise registrada.'));data.items.forEach(item=>{const box=node('div',undefined,'record'),button=node('button',item.name+' · '+({fidc:'FIDCs',cdb:'CDBs',credits:'Créditos'})[item.module]);button.type='button';button.addEventListener('click',()=>busy(box,async()=>{showReport(await api('/analyses/'+item.id));message('Análise carregada.');}));box.append(button,node('small',item.created_at+' · '+item.summary.alert_count+' pontos de atenção'));list.append(box);});const pages=$('#history-pagination');pages.replaceChildren();if(page>1){const previous=node('button','Anterior','secondary');previous.addEventListener('click',()=>loadHistory(page-1).catch(error=>message(error.message,true)));pages.append(previous);}if(page<data.pages){const next=node('button','Próxima','secondary');next.addEventListener('click',()=>loadHistory(page+1).catch(error=>message(error.message,true)));pages.append(next);}}
 $('#reload-history').addEventListener('click',()=>loadHistory(historyPage).catch(error=>message(error.message,true)));

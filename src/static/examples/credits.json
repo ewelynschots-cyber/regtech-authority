@@ -1,0 +1,78 @@
+{
+  "name": "Exemplo fictício · Precatório e cessões",
+  "as_of": "2026-10-20",
+  "source_ref": "Exemplo de validação / todos os dados são fictícios",
+  "credits": [
+    {
+      "credit_id": "PRE-FICTICIO-001",
+      "kind": "precatorio",
+      "debtor_ref": "ENTE-PUBLICO-FICTICIO",
+      "original_holder_ref": "CREDOR-ORIGINAL-FICTICIO",
+      "declared_holder_ref": "CESSIONARIO-C-FICTICIO",
+      "face_amount": "100000.00",
+      "document_amount": "100000.00",
+      "paid_amount": "10000.00",
+      "reserved_amount": "5000.00",
+      "document_ref": "Certidão fictícia / valor original",
+      "process_number": "PROCESSO-FICTICIO-SEM-VALIDADE",
+      "court": "TRIBUNAL-FICTICIO",
+      "precatorio_number": "PRECATORIO-FICTICIO-2026-001",
+      "nature": "comum",
+      "final_judgment_ref": "Trânsito em julgado fictício",
+      "requisition_ref": "Requisitório fictício",
+      "payment_order_ref": "Lista fictícia de pagamento / data-base",
+      "claim_confirmed": true,
+      "holder_confirmed": null,
+      "holder_check_ref": "",
+      "encumbrance_status": "present",
+      "encumbrance_ref": "Reserva fictícia de honorários / sem sobreposição aos pagamentos",
+      "dispute_status": "none",
+      "dispute_ref": "Certidão fictícia de conferência",
+      "assignments": [
+        {
+          "assignment_id": "CESSAO-01",
+          "date": "2026-02-10",
+          "transferor_ref": "CREDOR-ORIGINAL-FICTICIO",
+          "transferee_ref": "CESSIONARIO-B-FICTICIO",
+          "face_amount": "60000.00",
+          "instrument_ref": "Instrumento fictício 1",
+          "court_notification_ref": "Protocolo fictício / tribunal 1",
+          "debtor_notification_ref": "Comunicação fictícia / devedor 1"
+        },
+        {
+          "assignment_id": "CESSAO-02",
+          "date": "2026-05-20",
+          "transferor_ref": "CESSIONARIO-B-FICTICIO",
+          "transferee_ref": "CESSIONARIO-C-FICTICIO",
+          "face_amount": "40000.00",
+          "instrument_ref": "Instrumento fictício 2",
+          "court_notification_ref": "",
+          "debtor_notification_ref": "Comunicação fictícia / devedor 2"
+        }
+      ],
+      "economic": {
+        "acquired_face_amount": "40000.00",
+        "purchase_price": "30000.00",
+        "upfront_costs": "500.00",
+        "scenarios": [
+          {
+            "name": "Hipótese 12 meses",
+            "months_to_receipt": 12,
+            "expected_gross_amount": "45000.00",
+            "receipt_costs": "300.00",
+            "taxes": "500.00",
+            "discount_rate_annual_percent": "12.00"
+          },
+          {
+            "name": "Hipótese 36 meses",
+            "months_to_receipt": 36,
+            "expected_gross_amount": "45000.00",
+            "receipt_costs": "300.00",
+            "taxes": "500.00",
+            "discount_rate_annual_percent": "12.00"
+          }
+        ]
+      }
+    }
+  ]
+}

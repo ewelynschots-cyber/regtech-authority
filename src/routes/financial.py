@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request, Response
 from sqlalchemy.exc import IntegrityError
 from src import db
 from src.models.financial_analysis import FinancialAnalysis, FinancialReview, now_iso
+from src.services.credit_analysis import analyze_credits
 from src.services.financial_analysis import (
     InputError, analyze_fidc, analyze_cdb, canonical_hash, csv_receivables, object_fields, text,
 )
@@ -83,6 +84,37 @@ def cdb():
     return save_analysis('cdb', payload, analyze_cdb(payload))
 
 
+def save_credit_analysis(payload, artifact=None):
+    result = analyze_credits(payload)
+    linked = result['linked_fidc_analysis_id']
+    if linked:
+        portfolio = db.get_or_404(FinancialAnalysis, linked)
+        if portfolio.module != 'fidc':
+            raise InputError('A análise vinculada deve pertencer ao módulo FIDC')
+    return save_analysis('credits', payload, result, artifact)
+
+
+@financial_api.post('/credits')
+def credit_rights():
+    return save_credit_analysis(request.get_json())
+
+
+@financial_api.post('/credits/import')
+def credit_import():
+    uploaded = request.files.get('file')
+    if uploaded is None:
+        raise InputError('Envie o arquivo JSON no campo file')
+    raw = uploaded.read(2_000_001)
+    if len(raw) > 2_000_000:
+        raise InputError('Arquivo excede 2 MB')
+    try:
+        payload = json.loads(raw.decode('utf-8-sig'))
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+        raise InputError('Arquivo JSON inválido; utilize UTF-8')
+    return save_credit_analysis(payload, {'filename': uploaded.filename,
+                                         'file_sha256': hashlib.sha256(raw).hexdigest()})
+
+
 @financial_api.get('/analyses')
 def history():
     # Pagination avoids loading all portfolios and results into the history page.
@@ -95,8 +127,8 @@ def history():
     query = FinancialAnalysis.query
     module = request.args.get('module')
     if module:
-        if module not in ('fidc', 'cdb'):
-            raise InputError('module deve ser fidc ou cdb')
+        if module not in ('fidc', 'cdb', 'credits'):
+            raise InputError('module deve ser fidc, cdb ou credits')
         query = query.filter_by(module=module)
     result = query.order_by(FinancialAnalysis.created_at.desc(), FinancialAnalysis.id).paginate(page=page, per_page=20, error_out=False)
     return jsonify(items=[{'id': row.id, 'module': row.module, 'name': row.name, 'created_at': row.created_at,
