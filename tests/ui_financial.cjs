@@ -50,7 +50,26 @@ async function main() {
   assert.equal(exported.status,200);const json=await exported.json();assert.equal(json.revision,1);
   assert.deepEqual(json.integrity,{input_matches:true,result_matches:true,review_chain_matches:true});
   assert.equal(errors.length,0);
-  console.log('PASS: demo, CDB form, report, review, history and JSON export; no JavaScript errors.');
+  doc.querySelector('[data-tab=credits]').click();
+  assert.equal(doc.querySelector('#credits').hidden,false);
+  for(let run=0;run<2;run++){
+    doc.querySelector('#demo-credits').click();
+    await wait(()=>doc.querySelector('#message').textContent.startsWith('Exemplo fictício de precatório carregado'));
+    assert.equal(doc.querySelector('#credits-form').elements.credit_face_amount.value,'100000.00');
+    assert.equal(doc.querySelectorAll('#credit-assignments .entry').length,2);
+    assert.equal(doc.querySelectorAll('#credit-scenarios .entry').length,2);
+  }
+  doc.querySelector('#credits-form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await wait(()=>doc.querySelector('#message').textContent==='Crédito e cadeia de cessões analisados e registrados.');
+  assert.match(doc.querySelector('#report-module').textContent,/PRECATÓRIOS/);
+  assert.match(doc.querySelector('#report-detail').textContent,/CESSIONARIO-C-FICTICIO/);
+  assert.match(doc.querySelector('#report-detail').textContent,/25.0000%/);
+  const creditExport=await fetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base));
+  const creditJson=await creditExport.json();
+  assert.equal(creditJson.result.module,'credits');
+  assert.equal(creditJson.result.credits[0].assignment_chain.declared_holder_nominal_share,'40000.00');
+  assert.equal(errors.length,0);
+  console.log('PASS: CDB and credit forms, repeated demos, partial assignments, scenarios, report, review, history and JSON export; no JavaScript errors.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
   dom?.window.close();

@@ -1,6 +1,6 @@
 # RegTech Authority
 
-API Flask para clientes e KYC, com portal de análises de FIDCs e CDBs.
+API Flask para clientes e KYC, com portal de análises de FIDCs, CDBs, precatórios e outros direitos creditórios.
 
 ## Executar
 
@@ -28,3 +28,5 @@ npm run test:ui
 Esse teste inicia um servidor local temporário, usa banco isolado e verifica o fluxo no DOM. Não substitui a conferência visual em navegador.
 
 Veja [a documentação dos módulos financeiros](docs/financial-modules.md) para os contratos da API, exemplos, regras, fontes oficiais e limites do processamento.
+
+O módulo de [Precatórios e Direitos Creditórios](docs/credit-rights.md) inclui cadeia de cessões, diligência documental e cenários econômicos com premissas explícitas.
