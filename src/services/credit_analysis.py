@@ -146,11 +146,14 @@ def economic_scenarios(raw, credit, alerts):
 
 
 def analyze_credits(payload):
-    object_fields(payload, {'name', 'as_of', 'source_ref', 'credits', 'linked_fidc_analysis_id'}, 'Direitos creditórios')
+    object_fields(payload, {'name', 'as_of', 'source_ref', 'credits', 'linked_fidc_analysis_id', 'process_lookup_ids'}, 'Direitos creditórios')
     name = text(payload.get('name'), 'name')
     as_of = iso_date(payload.get('as_of'), 'as_of')
     source = text(payload.get('source_ref'), 'source_ref')
     linked = text(payload.get('linked_fidc_analysis_id'), 'linked_fidc_analysis_id', optional=True)
+    lookups = [text(value, 'process_lookup_ids') for value in list_rows(payload.get('process_lookup_ids', []), 'process_lookup_ids', maximum=5, allow_empty=True)]
+    if len(lookups) != len(set(lookups)):
+        raise InputError('Identificadores de consulta repetidos')
     credits, alerts, sources = [], [], [source]
     ids, precatorios, documents = defaultdict(list), defaultdict(list), defaultdict(list)
     face_total = Decimal(0)
@@ -244,10 +247,10 @@ def analyze_credits(payload):
                 flag(alerts, code, 'Possível repetição dentro da carteira; conferir parcelas e participações',
                      evidence={'rows': rows, 'key': list(key) if isinstance(key, tuple) else key, 'source_ref': source})
     return {'module': 'credits', 'engine_version': VERSION, 'name': name, 'as_of': as_of,
-            'linked_fidc_analysis_id': linked, 'credits': credits, 'alerts': alerts,
+            'linked_fidc_analysis_id': linked, 'process_lookup_ids': lookups, 'credits': credits, 'alerts': alerts,
             'sources': sorted(set(sources)), 'reference_sources': REFERENCES,
             'summary': {'credit_count': len(credits), 'declared_face_total': money(face_total), 'alert_count': len(alerts)},
-            'method': 'Diligência sobre dados e referências documentais declarados. Sem consulta automática a tribunais, '
+            'method': 'Diligência sobre dados e referências documentais declarados. Consultas processuais vinculadas, quando realizadas, limitam-se aos metadados públicos. Sem '
                       'autenticação de documentos ou certificação de titularidade/exigibilidade. '
                       'Cadeias nominais e cenários são reconstruções condicionadas aos dados fornecidos; '
                       'o prazo do cenário não é previsão de pagamento.'}

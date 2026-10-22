@@ -30,3 +30,5 @@ Esse teste inicia um servidor local temporário, usa banco isolado e verifica o 
 Veja [a documentação dos módulos financeiros](docs/financial-modules.md) para os contratos da API, exemplos, regras, fontes oficiais e limites do processamento.
 
 O módulo de [Precatórios e Direitos Creditórios](docs/credit-rights.md) inclui cadeia de cessões, diligência documental e cenários econômicos com premissas explícitas.
+
+A [primeira camada de automação](docs/automation.md) integra metadados públicos do DataJud, preenchimento assistido do tribunal e checklist de diligência CSV. A disponibilidade da consulta depende da fonte oficial e da chave configurada.
