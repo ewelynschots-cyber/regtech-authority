@@ -1,5 +1,5 @@
 import logging
-from flask import Flask, request, Blueprint
+from flask import Flask, request, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace
 from sqlalchemy.exc import IntegrityError
 from src import db
@@ -42,6 +42,21 @@ def create_app(config=None):
     if config:
         app.config.update(config)
     db.init_app(app)
+    from src.routes.financial import financial_api
+    app.config.setdefault('MAX_CONTENT_LENGTH', 3_000_000)
+    if app.config['MAX_CONTENT_LENGTH'] is None:
+        app.config['MAX_CONTENT_LENGTH'] = 3_000_000
+    app.register_blueprint(financial_api)
+
+    @app.cli.command('init-db')
+    def init_db():
+        """Create missing tables without dropping existing data."""
+        db.create_all()
+        print('Tabelas verificadas e criadas quando ausentes.')
+
+    @app.get('/')
+    def financial_portal():
+        return render_template('financial.html')
     api_bp = Blueprint('api', __name__, url_prefix='/api')
     api = Api(api_bp, version='1.0', title='RegTech Authority API', doc='/docs')
     customers_ns = Namespace('customers', description='Customer operations')

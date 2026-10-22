@@ -1,0 +1,5 @@
+title_id,originator_id,debtor_id,amount,document_ref,document_amount,assignment_ref,installment,existence_confirmed,ownership_confirmed
+T-001,CEDENTE-FICTICIO,DEVEDOR-A,1000.00,DOC-01,1000.00,CESSAO-01,1,true,true
+T-002,CEDENTE-FICTICIO,DEVEDOR-B,2000.00,DOC-02,1800.00,CESSAO-02,1,,
+T-002,CEDENTE-FICTICIO,DEVEDOR-B,2000.00,DOC-02,1800.00,CESSAO-02,1,,
+T-004,CEDENTE-FICTICIO,DEVEDOR-C,500.00,,,,1,,

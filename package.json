@@ -1,0 +1,6 @@
+{
+  "name": "regtech-authority-ui-checks",
+  "private": true,
+  "scripts": {"test:ui": "node tests/ui_financial.cjs"},
+  "devDependencies": {"jsdom": "30.1.3"}
+}

@@ -1,0 +1,59 @@
+// DOM integration smoke test. Does not replace visual/browser QA.
+const assert = require('node:assert/strict');
+const {spawn} = require('node:child_process');
+const {mkdtempSync, rmSync} = require('node:fs');
+const {tmpdir} = require('node:os');
+const path = require('node:path');
+const net = require('node:net');
+const {JSDOM, VirtualConsole} = require('jsdom');
+const root = path.resolve(__dirname, '..');
+let server, dom, directory;
+
+async function main() {
+  const port = await new Promise(resolve => {
+    const socket = net.createServer();
+    socket.listen(0, '127.0.0.1', () => { const port = socket.address().port; socket.close(() => resolve(port)); });
+  });
+  const base = `http://127.0.0.1:${port}`;
+  directory = mkdtempSync(path.join(tmpdir(), 'regtech-ui-'));
+  const code = "import sys; from src.app import create_app; from src import db; app=create_app({'SQLALCHEMY_DATABASE_URI':'sqlite:///'+sys.argv[1]}); ctx=app.app_context(); ctx.push(); db.create_all(); app.run(port=int(sys.argv[2]))";
+  server = spawn(process.env.PYTHON || 'python', ['-c', code, path.join(directory, 'test.db'), String(port)], {cwd:root, stdio:['ignore','ignore','pipe']});
+  let serverOutput='';server.stderr.on('data', chunk => {serverOutput+=chunk;});
+  let ready=false;
+  for(let i=0;i<100;i++) { try { const response=await fetch(base); if(response.ok) {ready=true;break;} } catch {} await new Promise(r=>setTimeout(r,100)); }
+  assert.ok(ready, 'Test server did not start: '+serverOutput);
+  const errors=[], virtualConsole=new VirtualConsole();virtualConsole.on('jsdomError',error=>errors.push(error.message));
+  dom=await JSDOM.fromURL(base,{resources:'usable',runScripts:'dangerously',virtualConsole,
+    beforeParse(window){window.fetch=(url,options)=>fetch(new URL(url,window.location.href),options);}});
+  const {window}=dom, doc=window.document;
+  const wait=async(fn)=>{for(let n=0;n<100;n++){if(fn())return;await new Promise(r=>setTimeout(r,50));}throw new Error('Timeout: '+doc.querySelector('#message')?.textContent);};
+  await wait(()=>doc.readyState==='complete');
+  doc.querySelector('[data-tab=cdb]').click();assert.equal(doc.querySelector('#cdb').hidden,false);
+  // Repeated demo loading must not mix candidate values with dynamic peer/position fields.
+  for(let run=0;run<2;run++){
+    doc.querySelector('#demo-cdb').click();
+    await wait(()=>doc.querySelector('#message').textContent.startsWith('Exemplo fictício carregado'));
+    assert.equal(doc.querySelectorAll('#peers .entry').length,3);
+    assert.equal(doc.querySelector('#cdb-form').elements.conglomerate_ref.value,'GRUPO-A');
+  }
+  doc.querySelector('#cdb-form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await wait(()=>doc.querySelector('#message').textContent==='Emissor e oferta analisados.');
+  assert.match(doc.querySelector('#report-summary').textContent,/106.00% CDI/);
+  const form=doc.querySelector('.review-form');form.elements.status.value='in_review';
+  form.elements.reviewer.value='Revisor fictício';form.elements.reason.value='Revisão de teste';form.elements.evidence_ref.value='FONTE-TESTE';
+  form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await wait(()=>doc.querySelector('#message').textContent==='Revisão registrada com histórico preservado.');
+  assert.match(doc.querySelector('#reviews').textContent,/Revisor fictício/);
+  doc.querySelector('[data-tab=history]').click();await wait(()=>doc.querySelector('#history-list button'));
+  doc.querySelector('#history-list button').click();await wait(()=>doc.querySelector('#message').textContent==='Análise carregada.');
+  const exported=await fetch(new URL(doc.querySelector('#export-link').getAttribute('href'),base));
+  assert.equal(exported.status,200);const json=await exported.json();assert.equal(json.revision,1);
+  assert.deepEqual(json.integrity,{input_matches:true,result_matches:true,review_chain_matches:true});
+  assert.equal(errors.length,0);
+  console.log('PASS: demo, CDB form, report, review, history and JSON export; no JavaScript errors.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
+  dom?.window.close();
+  if(server && server.exitCode===null){server.kill();await new Promise(resolve=>server.once('exit',resolve));}
+  if(directory)rmSync(directory,{recursive:true,force:true});
+});
