@@ -35,7 +35,7 @@ def analyze_network(payload):
     for node in nodes:
         if not isinstance(node, dict) or set(node) != {"id", "kind", "label", "source_ids"}:
             raise ValueError("Nó inválido")
-        identifier, label, kind, refs = node.values() if False else (node["id"], node["label"], node["kind"], node["source_ids"])
+        identifier, label, kind, refs = (node["id"], node["label"], node["kind"], node["source_ids"])
         if not isinstance(identifier, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", identifier) or identifier in ids:
             raise ValueError("Identificador de nó inválido ou duplicado")
         if kind not in KINDS or not isinstance(label, str) or not 1 <= len(label.strip()) <= 200:
