@@ -17,7 +17,7 @@ def create_investigation():
         return jsonify(message=str(exc)), 400
     envelope = {"request": payload, "organization_id": g.user.organization_id, "created_by_user_id": g.user.id}
     item = FinancialAnalysis(**owner_values(), created_by_user_id=g.user.id,
-                             module="patrimonial", name=result["name"],
+                             module="assets", name=result["name"],
                              input_payload=envelope, result_payload=result,
                              input_sha256=canonical_hash(envelope), result_sha256=canonical_hash(result))
     db.session.add(item)
@@ -27,14 +27,14 @@ def create_investigation():
 
 @patrimonial_api.get("/investigations")
 def list_investigations():
-    rows = scoped(FinancialAnalysis).filter_by(module="patrimonial").order_by(FinancialAnalysis.created_at.desc()).limit(50).all()
+    rows = scoped(FinancialAnalysis).filter_by(module="assets").order_by(FinancialAnalysis.created_at.desc()).limit(50).all()
     return jsonify(items=[{"id": x.id, "name": x.name, "created_at": x.created_at,
                            "summary": x.result_payload["summary"]} for x in rows])
 
 @patrimonial_api.get("/investigations/<string:identifier>")
 def get_investigation(identifier):
     item = owned(FinancialAnalysis, identifier)
-    if item.module != "patrimonial":
+    if item.module != "assets":
         return jsonify(message="Investigação não encontrada"), 404
     return jsonify(id=item.id, result=item.result_payload, integrity={
         "input_matches": canonical_hash(item.input_payload) == item.input_sha256,
