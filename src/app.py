@@ -53,6 +53,8 @@ def create_app(config=None):
     if app.config['MAX_CONTENT_LENGTH'] is None:
         app.config['MAX_CONTENT_LENGTH'] = 3_000_000
     app.register_blueprint(financial_api)
+    from src.routes.patrimonial import patrimonial_api
+    app.register_blueprint(patrimonial_api)
     from src.routes.automation import source_api
     app.register_blueprint(source_api)
     from src.models.process_monitor import ProcessMonitor
