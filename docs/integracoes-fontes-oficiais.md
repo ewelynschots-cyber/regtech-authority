@@ -2,6 +2,13 @@
 
 Estado: planejamento técnico; nenhum conector de produção ativado.
 
+## Requisito de produto aprovado
+
+Os cinco provedores são fontes de dados para um **Dossiê Integrado de Inteligência Jurídica, Patrimonial e Regulatória**, e não módulos de atalhos ou listas de links. A plataforma deve executar as consultas permitidas, normalizar os retornos, correlacionar achados com o caso e produzir relatório consolidado com proveniência e integridade. **Não anunciar integração automática como concluída antes da autorização de acesso e testes.** Quando uma fonte exigir login pessoal, certificado ou pagamento e não oferecer integração autorizada, marcar `requires_authorized_access` e não simular resultado nem substituir o conector por mero link.
+
+O dossiê deve distinguir `found`, `confirmed_not_found`, `unavailable`, `not_queried`, `partial` e `requires_authorized_access`; conter data-base, origem, parâmetros mínimos, referência do documento, hash, limitações e responsável pela consulta. Separar dados confirmados de inferências e impedir conclusão automática de ausência de passivos com base em pesquisa incompleta.
+
+
 ## Fontes e regras de acesso
 
 | Fonte | Endpoint oficial | Modelo inicial | Limite |
