@@ -1,0 +1,49 @@
+name: RegTech 1.0 - Validation Suites
+on:
+  push:
+    branches:
+      - release/regtech-1-0-stabilization
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    name: Python pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run pytest
+        run: python -m pytest -q
+
+  ui-tests:
+    name: Financial UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Run UI suite
+        run: npm run test:ui
