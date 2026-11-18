@@ -104,7 +104,7 @@ function showReport(data) {
       const values=Object.fromEntries(new FormData(form));const updated=await api('/analyses/'+data.id+'/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...values,alert_id:alert.id,expected_revision:data.revision})});showReport(updated);message('Revisão registrada com histórico preservado.');
     });});
   });
-  const sources=$('#sources');sources.replaceChildren();result.sources.forEach(source=>sources.append(node('p',typeof source === 'string' ? source : source.id+' · '+source.reference+' · '+source.accessed_at)));sources.append(node('pre','Entrada SHA-256: '+data.input_sha256+'\nResultado SHA-256: '+data.result_sha256+'\nRevisão: '+data.revision));
+  const sources=$('#sources');sources.replaceChildren();result.sources.forEach(source=>sources.append(node('p',typeof source === 'string' ? source : source.id+' · '+source.reference+' · '+source.accessed_at+' · Declarada pelo analista')));sources.append(node('pre','Entrada SHA-256: '+data.input_sha256+'\nResultado SHA-256: '+data.result_sha256+'\nRevisão: '+data.revision));
   sources.append(node('p',Object.values(data.integrity).every(Boolean)?'Hashes e encadeamento conferem.':'Divergência de integridade: consulte o dossiê exportado.'));
   result.reference_sources.forEach(source=>{const p=node('p'),a=node('a',source);a.href=source;a.target='_blank';a.rel='noopener noreferrer';p.append(a);sources.append(p);});
   const reviews=$('#reviews');reviews.replaceChildren();if(!data.reviews.length) reviews.append(node('p','Nenhuma revisão registrada.'));

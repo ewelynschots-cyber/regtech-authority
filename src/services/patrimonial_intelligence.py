@@ -37,7 +37,7 @@ def analyze_network(payload):
                 raise ValueError
         except ValueError:
             raise ValueError("Data de consulta deve conter horário e fuso ISO 8601") from None
-        clean_sources.append(source)
+        clean_sources.append({**source, "status": "declared"})
     source_ids = [s["id"] for s in clean_sources]
     if len(set(source_ids)) != len(source_ids):
         raise ValueError("IDs de fonte duplicados")
