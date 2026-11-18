@@ -167,8 +167,8 @@ def history():
     query = scoped(FinancialAnalysis)
     module = request.args.get('module')
     if module:
-        if module not in ('fidc', 'cdb', 'credits'):
-            raise InputError('module deve ser fidc, cdb ou credits')
+        if module not in ('fidc', 'cdb', 'credits', 'assets'):
+            raise InputError('module deve ser fidc, cdb, credits ou assets')
         query = query.filter_by(module=module)
     result = query.order_by(FinancialAnalysis.created_at.desc(), FinancialAnalysis.id).paginate(page=page, per_page=20, error_out=False)
     return jsonify(items=[{'id': row.id, 'module': row.module, 'name': row.name, 'created_at': row.created_at,

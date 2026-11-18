@@ -1,0 +1,21 @@
+{
+  "name": "Caso fictício de diligência fiscal",
+  "purpose": "fiscal_diligence",
+  "legal_basis": "Simulação com entidades e documentos fictícios.",
+  "case_reference": "DEMO-FISCAL-001",
+  "sources": [
+    {"id": "F1", "reference": "Auto fiscal fictício, item 2", "accessed_at": "2026-11-17T10:00:00-03:00"},
+    {"id": "F2", "reference": "Instrumento fictício de transferência, cláusula 3", "accessed_at": "2026-11-17T10:05:00-03:00"}
+  ],
+  "nodes": [
+    {"id": "E1", "kind": "company", "label": "Empresa Alfa (fictícia)", "source_ids": ["F1", "F2"]},
+    {"id": "B1", "kind": "asset", "label": "Imóvel A (fictício)", "source_ids": ["F2"]}
+  ],
+  "edges": [
+    {"from": "E1", "to": "B1", "relation": "linked_to", "source_ids": ["F2"]}
+  ],
+  "events": [
+    {"date": "2026-10-22", "kind": "asset_transfer", "entity_id": "E1", "description": "Instrumento descreve transferência do imóvel A.", "source_ids": ["F2"]},
+    {"date": "2026-10-08", "kind": "tax_assessment", "entity_id": "E1", "description": "Data da autuação descrita no auto fiscal.", "source_ids": ["F1"]}
+  ]
+}

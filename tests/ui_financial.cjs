@@ -87,7 +87,19 @@ async function main() {
   const checklist=await authedFetch(new URL(doc.querySelector('#checklist-link').getAttribute('href'),base));
   assert.equal(checklist.status,200);assert.match(await checklist.text(),/Tarefa de diligência/);
   assert.equal(errors.length,0);
-  console.log('PASS: CDB/credit workflows, automatic process lookup (mocked), court prefill, query evidence and checklist CSV.');
+  doc.querySelector('[data-tab=assets]').click();
+  assert.equal(doc.querySelector('#assets').hidden, false);
+  doc.querySelector('#demo-assets').click();
+  await wait(() => doc.querySelector('#assets-payload').value.includes('DEMO-FISCAL-001'));
+  doc.querySelector('#assets-form').dispatchEvent(new window.Event('submit', {bubbles:true, cancelable:true}));
+  await wait(() => doc.querySelector('#message').textContent === 'Dossiê registrado.');
+  assert.match(doc.querySelector('#report-detail').textContent, /Autuação fiscal.*Transferência patrimonial/);
+  assert.match(doc.querySelector('#sources').textContent, /F2 · Instrumento fictício/);
+  const dossier = await authedFetch(new URL(doc.querySelector('#export-link').getAttribute('href'), base));
+  assert.equal(dossier.status, 200);
+  assert.equal((await dossier.json()).result.alerts[0].code, 'transfer_after_assessment');
+  assert.equal(errors.length, 0);
+  console.log('PASS: CDB/credit workflows, automatic process lookup (mocked), court prefill, query evidence checklist CSV and fiscal dossier.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{
   dom?.window.close();

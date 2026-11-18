@@ -5,8 +5,8 @@ const brl = value => Number(value).toLocaleString('pt-BR', {style:'currency', cu
 const node = (tag, content, className) => { const el=document.createElement(tag); if(content!==undefined) el.textContent=content; if(className) el.className=className; return el; };
 let currentReport=null, historyPage=1;
 function message(text, error=false) { $('#message').textContent=text; $('#message').className=error?'error':'success'; }
-async function api(path, options={}) {
-  const response=await fetch('/api/financial'+path, options);
+async function api(path, options={}, base='/api/financial') {
+  const response=await fetch(base+path, options);
   let data; try { data=await response.json(); } catch { throw new Error('Não foi possível concluir. Verifique a inicialização do banco e os logs do serviço.'); }
   if(!response.ok) throw new Error(data.message||'Não foi possível concluir a solicitação.');
   return data;
@@ -18,7 +18,7 @@ async function busy(form, fn) {
   finally { form.classList.remove('busy'); form.removeAttribute('aria-busy'); }
 }
 function activate(tab) {
-  ['fidc','cdb','credits','history'].forEach(id=>{ $('#'+id).hidden=id!==tab; });
+  ['fidc','cdb','credits','assets','history'].forEach(id=>{ $('#'+id).hidden=id!==tab; });
   document.querySelectorAll('[data-tab]').forEach(el=>{ const active=el.dataset.tab===tab; el.classList.toggle('active',active); el.setAttribute('aria-pressed',String(active)); });
   $('#report').hidden=true;
   if(tab==='history') loadHistory(1).catch(error=>message(error.message,true));
@@ -69,12 +69,14 @@ $('#demo-cdb').addEventListener('click',()=>busy($('#cdb-form'),async()=>{
 function metric(value,label) {const el=node('div',undefined,'metric');el.append(node('strong',value),node('span',label));return el;}
 function table(parent, headers, rows) {const wrap=node('div',undefined,'table-wrap'),table=node('table'),head=node('tr');headers.forEach(h=>head.append(node('th',h)));table.append(head);rows.forEach(row=>{const tr=node('tr');row.forEach(cell=>tr.append(node('td',String(cell??'—'))));table.append(tr);});wrap.append(table);parent.append(wrap);}
 function showReport(data) {
-  currentReport=data;const result=data.result;$('#report').hidden=false;$('#report-title').textContent=result.name;$('#report-module').textContent=({fidc:'LASTRO E RECEBÍVEIS · FIDCs',cdb:'EMISSOR E CAPTAÇÃO · CDBs',credits:'PRECATÓRIOS E DIREITOS CREDITÓRIOS'})[result.module];
+  currentReport=data;const result=data.result;$('#report').hidden=false;$('#report-title').textContent=result.name;$('#report-module').textContent=({fidc:'LASTRO E RECEBÍVEIS · FIDCs',cdb:'EMISSOR E CAPTAÇÃO · CDBs',credits:'PRECATÓRIOS E DIREITOS CREDITÓRIOS',assets:'DOSSIÊ FISCAL E PATRIMONIAL'})[result.module];
   $('#export-link').href='/api/financial/analyses/'+encodeURIComponent(data.id)+'/export';
   $('#checklist-link').href='/api/financial/analyses/'+encodeURIComponent(data.id)+'/checklist.csv';
   const metrics=$('#report-summary');metrics.replaceChildren();metrics.append(metric(String(result.summary.alert_count),'Pontos de atenção'));
   const detail=$('#report-detail');detail.replaceChildren();
-  if(result.module==='credits') {
+  if (result.module === 'assets') {
+    renderAssetReport(result, metrics, detail);
+  } else if(result.module==='credits') {
     window.renderCreditReport(result, metrics, detail);
   } else if(result.module==='fidc') {
     metrics.append(metric(String(result.summary.receivable_count),'Títulos importados'),metric(brl(result.summary.declared_total),'Total declarado, incluindo possíveis duplicidades'));
@@ -102,11 +104,62 @@ function showReport(data) {
       const values=Object.fromEntries(new FormData(form));const updated=await api('/analyses/'+data.id+'/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...values,alert_id:alert.id,expected_revision:data.revision})});showReport(updated);message('Revisão registrada com histórico preservado.');
     });});
   });
-  const sources=$('#sources');sources.replaceChildren();result.sources.forEach(source=>sources.append(node('p',source)));sources.append(node('pre','Entrada SHA-256: '+data.input_sha256+'\nResultado SHA-256: '+data.result_sha256+'\nRevisão: '+data.revision));
+  const sources=$('#sources');sources.replaceChildren();result.sources.forEach(source=>sources.append(node('p',typeof source === 'string' ? source : source.id+' · '+source.reference+' · '+source.accessed_at)));sources.append(node('pre','Entrada SHA-256: '+data.input_sha256+'\nResultado SHA-256: '+data.result_sha256+'\nRevisão: '+data.revision));
   sources.append(node('p',Object.values(data.integrity).every(Boolean)?'Hashes e encadeamento conferem.':'Divergência de integridade: consulte o dossiê exportado.'));
   result.reference_sources.forEach(source=>{const p=node('p'),a=node('a',source);a.href=source;a.target='_blank';a.rel='noopener noreferrer';p.append(a);sources.append(p);});
   const reviews=$('#reviews');reviews.replaceChildren();if(!data.reviews.length) reviews.append(node('p','Nenhuma revisão registrada.'));
   data.reviews.forEach(row=>{const event=row.event;const record=node('div',undefined,'record');record.append(node('strong',event.alert_id+' · '+statuses[event.previous_status]+' → '+statuses[event.status]),node('p',event.reason),node('small',event.reviewer_declared+' · '+event.created_at+' · Evidência: '+event.evidence_ref));reviews.append(record);});
 }
-async function loadHistory(page=1){historyPage=page;const data=await api('/analyses?page='+page);const list=$('#history-list');list.replaceChildren();if(!data.items.length)list.append(node('p','Nenhuma análise registrada.'));data.items.forEach(item=>{const box=node('div',undefined,'record'),button=node('button',item.name+' · '+({fidc:'FIDCs',cdb:'CDBs',credits:'Créditos'})[item.module]);button.type='button';button.addEventListener('click',()=>busy(box,async()=>{showReport(await api('/analyses/'+item.id));message('Análise carregada.');}));box.append(button,node('small',item.created_at+' · '+item.summary.alert_count+' pontos de atenção'));list.append(box);});const pages=$('#history-pagination');pages.replaceChildren();if(page>1){const previous=node('button','Anterior','secondary');previous.addEventListener('click',()=>loadHistory(page-1).catch(error=>message(error.message,true)));pages.append(previous);}if(page<data.pages){const next=node('button','Próxima','secondary');next.addEventListener('click',()=>loadHistory(page+1).catch(error=>message(error.message,true)));pages.append(next);}}
+async function loadHistory(page=1){historyPage=page;const data=await api('/analyses?page='+page);const list=$('#history-list');list.replaceChildren();if(!data.items.length)list.append(node('p','Nenhuma análise registrada.'));data.items.forEach(item=>{const box=node('div',undefined,'record'),button=node('button',item.name+' · '+({fidc:'FIDCs',cdb:'CDBs',credits:'Créditos',assets:'Dossiê fiscal e patrimonial'})[item.module]);button.type='button';button.addEventListener('click',()=>busy(box,async()=>{showReport(await api('/analyses/'+item.id));message('Análise carregada.');}));box.append(button,node('small',item.created_at+' · '+item.summary.alert_count+' pontos de atenção'));list.append(box);});const pages=$('#history-pagination');pages.replaceChildren();if(page>1){const previous=node('button','Anterior','secondary');previous.addEventListener('click',()=>loadHistory(page-1).catch(error=>message(error.message,true)));pages.append(previous);}if(page<data.pages){const next=node('button','Próxima','secondary');next.addEventListener('click',()=>loadHistory(page+1).catch(error=>message(error.message,true)));pages.append(next);}}
 $('#reload-history').addEventListener('click',()=>loadHistory(historyPage).catch(error=>message(error.message,true)));
+
+
+function renderAssetReport(result, metrics, detail) {
+  metrics.append(metric(String(result.summary.node_count), 'Entidades'),
+                 metric(String(result.summary.edge_count), 'Vínculos'),
+                 metric(String(result.summary.source_count), 'Fontes declaradas'));
+  if (result.case_reference) detail.append(node('p', 'Referência do caso: ' + result.case_reference));
+  detail.append(node('p', 'Fundamento informado: ' + result.legal_basis));
+  const labels = new Map(result.nodes.map(entity => [entity.id, entity.label]));
+  const eventKinds = {
+    tax_assessment: 'Autuação fiscal', asset_transfer: 'Transferência patrimonial',
+    corporate_change: 'Alteração societária', other: 'Outro evento',
+  };
+  detail.append(node('h3', 'Cronologia'));
+  table(detail, ['Data', 'Tipo', 'Entidade', 'Evento', 'Fontes'], result.events.map(event =>
+    [event.date, eventKinds[event.kind], labels.get(event.entity_id), event.description, event.source_ids.join(', ')]));
+  detail.append(node('h3', 'Entidades'));
+  table(detail, ['Entidade', 'Fontes'], result.nodes.map(entity => [entity.label, entity.source_ids.join(', ')]));
+  detail.append(node('h3', 'Vínculos declarados'));
+  const relations = {
+    partner: 'Sócio', administrator: 'Administrador', beneficial_owner: 'Beneficiário final',
+    owns: 'Titularidade', linked_to: 'Relacionado', creditor: 'Credor', debtor: 'Devedor', party: 'Parte',
+  };
+  table(detail, ['Origem', 'Relação', 'Destino', 'Fontes'], result.edges.map(edge =>
+    [labels.get(edge.from), relations[edge.relation], labels.get(edge.to), edge.source_ids.join(', ')]));
+  result.limitations.forEach(limit => detail.append(node('p', limit, 'hint')));
+}
+
+$('#demo-assets').addEventListener('click', () => busy($('#assets-form'), async () => {
+  const response = await fetch('/static/examples/dossie-fiscal.json');
+  if (!response.ok) throw new Error('Caso fictício indisponível.');
+  $('#assets-payload').value = JSON.stringify(await response.json(), null, 2);
+  message('Caso fictício carregado. Clique em Analisar e registrar dossiê.');
+}));
+
+$('#assets-form').addEventListener('submit', event => {
+  event.preventDefault();
+  busy(event.currentTarget, async () => {
+    const body = $('#assets-payload').value;
+    try {
+      JSON.parse(body);
+    } catch {
+      throw new Error('Informe um JSON válido.');
+    }
+    const report = await api('/investigations', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body,
+    }, '/api/patrimonial');
+    showReport(report);
+    message('Dossiê registrado.');
+  });
+});
